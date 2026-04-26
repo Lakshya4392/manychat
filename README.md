@@ -1,36 +1,114 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🚀 Slide — Instagram DM Automation & AI Assistant
 
-## Getting Started
+Slide is a premium, powerful Instagram automation platform designed for creators, brands, and businesses. Built with Next.js 15, it enables users to automate their Instagram workflows through keyword-triggered responses, Smart AI assistants, and real-time engagement tools.
 
-First, run the development server:
+![Slide Dashboard Preview](https://github.com/Lakshya4392/manychat/raw/master/public/dashboard-preview.png)
 
+## ✨ Key Features
+
+- **🛡️ Secure OAuth Integration**: Seamless connection via Facebook Login for Business with high-level encryption for access tokens.
+- **⚡ Visual Automation Builder**: Create complex "When → If → Then" workflows with an intuitive, numbered UI.
+- **🤖 Smart AI Responses**: Powered by OpenAI's GPT-4o-mini, providing contextual and personalized replies to fans and customers.
+- **💬 Multi-Channel Triggers**: Trigger automations based on DMs, Post Comments, Story Mentions, and New Followers.
+- **🏷️ Keyword Matching**: Fine-grained control over which messages trigger which automations.
+- **📊 Performance Analytics**: Track total responses, active automations, and engagement stats through a premium dashboard.
+- **🧪 Test Simulator**: Built-in environment to test your automation logic without needing real Instagram accounts.
+- **🚀 Vercel Ready**: Optimized for edge deployment with Prisma acceleration.
+
+## 🛠️ Tech Stack
+
+- **Framework**: [Next.js 15 (App Router)](https://nextjs.org/)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Database**: [PostgreSQL (Neon)](https://neon.tech/)
+- **ORM**: [Prisma](https://www.prisma.io/)
+- **Authentication**: [Clerk](https://clerk.com/)
+- **Styling**: [Tailwind CSS 4](https://tailwindcss.com/)
+- **AI**: [OpenAI GPT-4o-mini](https://openai.com/)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **UI Components**: [Radix UI](https://www.radix-ui.com/) & [Shadcn UI](https://ui.shadcn.com/)
+
+## 🚀 Getting Started
+
+### 1. Prerequisites
+- Node.js 18.x or later
+- A Meta Developer Account
+- A Neon (PostgreSQL) database instance
+
+### 2. Installation
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Clone the repository
+git clone https://github.com/Lakshya4392/manychat.git
+
+# Navigate to project directory
+cd manychat
+
+# Install dependencies
+npm install
+
+# Generate Prisma client
+npx prisma generate
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. Environment Setup
+Create a `.env` file in the root directory and add the following:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```env
+# Database
+DATABASE_URL="your_postgresql_url"
+DIRECT_URL="your_direct_url"
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Clerk Auth
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="your_key"
+CLERK_SECRET_KEY="your_secret"
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 
-## Learn More
+# Instagram API
+INSTAGRAM_CLIENT_ID="your_facebook_app_id"
+INSTAGRAM_CLIENT_SECRET="your_facebook_app_secret"
+INSTAGRAM_VERIFY_TOKEN="your_custom_token"
 
-To learn more about Next.js, take a look at the following resources:
+# OpenAI
+OPENAI_API_KEY="your_openai_key"
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# App URL
+NEXT_PUBLIC_HOST_URL="http://localhost:3000"
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 4. Running Locally
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) to see the application.
 
-## Deploy on Vercel
+## 🏗️ Project Structure
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+├── src/
+│   ├── actions/        # Server Actions (Auth, Automations, Triggers)
+│   ├── app/           # Next.js App Router (Pages & API)
+│   ├── components/    # UI Components & Feature-specific components
+│   ├── hooks/         # Custom React Hooks
+│   ├── lib/           # Utility functions & Service clients (Prisma, OpenAI, etc.)
+│   └── types/         # TypeScript definitions
+├── prisma/            # Database schema & migrations
+└── public/            # Static assets
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📸 Screenshots
+
+<div align="center">
+  <img src="https://github.com/Lakshya4392/manychat/raw/master/public/automations-list.png" width="45%" alt="Automations List" />
+  <img src="https://github.com/Lakshya4392/manychat/raw/master/public/builder.png" width="45%" alt="Visual Builder" />
+</div>
+
+## 🛡️ License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+---
+Built with ❤️ by [Lakshay Dhiman](https://github.com/Lakshya4392)

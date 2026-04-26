@@ -7,23 +7,19 @@ export const dynamic = 'force-dynamic';
  * GET /api/instagram/auth
  * 
  * Initiates Instagram OAuth via Facebook Login for Business.
- * 
- * The app has "Facebook Login for Business" product configured, so
- * we use the Facebook OAuth endpoint with Instagram Business scopes.
- * 
- * Scopes come from: Use Cases → Instagram API → Customize → Permissions:
- *   - instagram_business_basic
- *   - instagram_business_manage_messages
- *   - instagram_manage_comments
  */
-export async function GET() {
+export async function GET(req: Request) {
   const user = await currentUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const clientId = process.env.INSTAGRAM_CLIENT_ID;
-  const redirectUri = `${process.env.NEXT_PUBLIC_HOST_URL}/api/instagram/callback`;
+  
+  // Use current request origin if possible, otherwise fallback to env
+  const { origin } = new URL(req.url);
+  const host = origin.includes('localhost') ? (process.env.NEXT_PUBLIC_HOST_URL || origin) : origin;
+  const redirectUri = `${host}/api/instagram/callback`;
 
   if (!clientId) {
     return NextResponse.json(
@@ -38,7 +34,7 @@ export async function GET() {
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
 
-  // Start with only valid scopes, add more via Permissions and Features later
+  // Start with only valid scopes
   authUrl.searchParams.set(
     "scope",
     "instagram_manage_comments"
@@ -53,7 +49,6 @@ export async function GET() {
 
   console.log("[Instagram OAuth] Client ID:", clientId);
   console.log("[Instagram OAuth] Redirect URI:", redirectUri);
-  console.log("[Instagram OAuth] Full Auth URL:", authUrl.toString());
 
   return NextResponse.redirect(authUrl.toString());
 }
