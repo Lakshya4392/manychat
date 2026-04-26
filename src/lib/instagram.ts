@@ -238,19 +238,19 @@ class InstagramClient {
       for (const entry of entries) {
         const { id: _entryId, time } = entry;
 
-        // Handle messaging events (DMs)
-        if (entry.messaging) {
-          for (const messaging of entry.messaging) {
-            if (messaging.message) {
-              events.push({
-                type: "DM",
-                senderId: messaging.sender.id,
-                senderUsername: messaging.sender.username || "unknown",
-                recipientId: entry.id, // The business IG account ID (recipient)
-                message: messaging.message.text || "",
-                timestamp: time.toString(),
-              });
-            }
+        // Handle messaging events (DMs) - check both 'messaging' and 'standby' arrays
+        const messageEvents = [...(entry.messaging || []), ...(entry.standby || [])];
+        
+        for (const messaging of messageEvents) {
+          if (messaging.message) {
+            events.push({
+              type: "DM",
+              senderId: messaging.sender.id,
+              senderUsername: messaging.sender.username || "unknown",
+              recipientId: entry.id, // The business IG account ID (recipient)
+              message: messaging.message.text || "",
+              timestamp: time.toString(),
+            });
           }
         }
 
