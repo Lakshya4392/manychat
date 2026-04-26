@@ -22,10 +22,11 @@ export async function GET(req: Request) {
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
   
-  // ONLY using the ones that said "Ready for testing" in your screenshot
+  // Using standard names WITHOUT "business_" prefix. 
+  // These are the "old but gold" scopes that always work if permission is there.
   authUrl.searchParams.set(
     "scope",
-    "instagram_business_basic,instagram_business_manage_messages,instagram_manage_comments"
+    "instagram_basic,instagram_manage_comments,instagram_manage_messages,pages_show_list,pages_read_engagement"
   );
 
   const state = Buffer.from(JSON.stringify({ clerkId: user.id, timestamp: Date.now() })).toString("base64");
