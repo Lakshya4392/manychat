@@ -1,81 +1,62 @@
 import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-
-const HOST_URL = process.env.NEXT_PUBLIC_HOST_URL || "http://localhost:3000";
+import { revalidatePath } from "next/cache";
 
 /**
  * GET /api/instagram/callback
  * 
- * Handles OAuth callback from Instagram Login.
- * Flow:
- *   1. Exchange code for short-lived token (via api.instagram.com)
- *   2. Exchange for long-lived token (via graph.instagram.com)
- *   3. Get Instagram user profile
- *   4. Save token + Instagram ID to database
+ * Handles OAuth callback from Facebook Login for Business.
  */
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
+  const { searchParams, origin } = new URL(req.url);
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const error = searchParams.get("error");
-  const errorDescription = searchParams.get("error_description");
-  const errorReason = searchParams.get("error_reason");
 
-  console.log("[OAuth Callback] Received params:", { 
-    hasCode: !!code, 
-    hasState: !!state, 
-    error, 
-    errorDescription, 
-    errorReason,
-  });
+  // Keep redirect URI identical to the one used in /api/instagram/auth
+  const redirectUri = `${origin}/api/instagram/callback`;
 
-  // Handle user denial or Instagram error
   if (error) {
-    console.error("[OAuth Callback] Error:", { error, errorDescription, errorReason });
-    const errorMsg = encodeURIComponent(`${error}: ${errorDescription || errorReason || 'Unknown error'}`);
-    return NextResponse.redirect(`${HOST_URL}/integrations?error=${errorMsg}`);
+    console.error("[OAuth Callback] Error from Instagram:", error);
+    return NextResponse.redirect(`${origin}/integrations?error=${encodeURIComponent(error)}`);
   }
 
   if (!code) {
-    return NextResponse.redirect(
-      `${HOST_URL}/integrations?error=no_code&description=Authorization%20code%20not%20received`
-    );
+    return NextResponse.redirect(`${origin}/integrations?error=missing_code`);
   }
 
   try {
-    // ── Step 0: Verify CSRF state ──
+    // ── Pre-Step: Verify State ──
     let clerkId: string;
     try {
       const stateJson = JSON.parse(Buffer.from(state || "", "base64").toString());
       clerkId = stateJson.clerkId;
-      if (Date.now() - stateJson.timestamp > 10 * 60 * 1000) {
+      // Allow 15 minutes for oauth flow
+      if (Date.now() - stateJson.timestamp > 15 * 60 * 1000) {
         throw new Error("State expired");
       }
     } catch {
-      return NextResponse.redirect(`${HOST_URL}/integrations?error=invalid_state`);
+      return NextResponse.redirect(`${origin}/integrations?error=invalid_state`);
     }
 
     const user = await currentUser();
     if (!user || user.id !== clerkId) {
-      return NextResponse.redirect(`${HOST_URL}/integrations?error=unauthorized`);
+      return NextResponse.redirect(`${origin}/integrations?error=unauthorized`);
     }
 
     const clientId = process.env.INSTAGRAM_CLIENT_ID!;
     const clientSecret = process.env.INSTAGRAM_CLIENT_SECRET!;
-    const redirectUri = `${HOST_URL}/api/instagram/callback`;
 
     // ── Step 1: Exchange code for short-lived token ──
-    // POST https://api.instagram.com/oauth/access_token
-    console.log("[OAuth] Exchanging code for short-lived token...");
+    console.log("[OAuth] Exchanging code for token, using redirect_uri:", redirectUri);
     
-    // Facebook Login token exchange endpoint
     const tokenUrl = new URL("https://graph.facebook.com/v21.0/oauth/access_token");
     tokenUrl.searchParams.set("client_id", clientId);
     tokenUrl.searchParams.set("client_secret", clientSecret);
-    tokenUrl.searchParams.set("redirect_uri", redirectUri);
+    tokenUrl.searchParams.set("redirect_uri", redirectUri); // MUST MATCH AUTH CALL
     tokenUrl.searchParams.set("code", code);
 
     const tokenRes = await fetch(tokenUrl.toString());
@@ -84,94 +65,73 @@ export async function GET(req: Request) {
     if (tokenData.error) {
       console.error("[OAuth] Token exchange failed:", tokenData.error);
       return NextResponse.redirect(
-        `${HOST_URL}/integrations?error=${encodeURIComponent(tokenData.error.message || "Token exchange failed")}`
+        `${origin}/integrations?error=${encodeURIComponent(tokenData.error.message || "Token exchange failed")}`
       );
     }
 
-    const shortLivedToken = tokenData.access_token;
-    const userId = tokenData.user_id;
-    console.log("[OAuth] Got short-lived token ✓, user_id:", userId);
+    const accessToken = tokenData.access_token;
+    console.log("[OAuth] Got access token ✓");
 
-    // ── Step 2: Exchange for long-lived token (60 days) ──
-    // Facebook Login: use fb_exchange_token grant type
-    console.log("[OAuth] Exchanging for long-lived token...");
-    
-    const longLivedUrl = new URL("https://graph.facebook.com/v21.0/oauth/access_token");
-    longLivedUrl.searchParams.set("grant_type", "fb_exchange_token");
-    longLivedUrl.searchParams.set("client_id", clientId);
-    longLivedUrl.searchParams.set("client_secret", clientSecret);
-    longLivedUrl.searchParams.set("fb_exchange_token", shortLivedToken);
+    // ── Step 2: Get Instagram User ID from the token ──
+    // For Facebook Login for Business, we need to find the connected Instagram ID
+    const meUrl = new URL("https://graph.facebook.com/v21.0/me");
+    meUrl.searchParams.set("fields", "id,name,accounts{instagram_business_account{id,name,username}}");
+    meUrl.searchParams.set("access_token", accessToken);
 
-    const longLivedRes = await fetch(longLivedUrl.toString());
-    const longLivedData = await longLivedRes.json();
+    const meRes = await fetch(meUrl.toString());
+    const meData = await meRes.json();
 
-    let accessToken = shortLivedToken;
-    let expiresIn = 3600; // 1 hour default for short-lived
-
-    if (longLivedData.access_token) {
-      accessToken = longLivedData.access_token;
-      expiresIn = longLivedData.expires_in || 5184000; // 60 days
-      console.log("[OAuth] Got long-lived token ✓, expires in:", expiresIn, "seconds");
-    } else {
-      console.warn("[OAuth] Long-lived token exchange failed, using short-lived:", longLivedData);
+    if (meData.error) {
+      console.error("[OAuth] Failed to get user info:", meData.error);
+      return NextResponse.redirect(`${origin}/integrations?error=user_info_failed`);
     }
 
-    // ── Step 3: Get Instagram profile ──
-    console.log("[OAuth] Fetching Instagram profile...");
-    const profileUrl = new URL(`https://graph.instagram.com/v21.0/me`);
-    profileUrl.searchParams.set("fields", "user_id,username,name,profile_picture_url");
-    profileUrl.searchParams.set("access_token", accessToken);
+    const igAccount = meData.accounts?.data?.[0]?.instagram_business_account;
+    if (!igAccount) {
+      console.error("[OAuth] No Instagram Business Account found linked to this Facebook Page");
+      return NextResponse.redirect(`${origin}/integrations?error=no_instagram_account`);
+    }
 
-    const profileRes = await fetch(profileUrl.toString());
-    const profileData = await profileRes.json();
-    console.log("[OAuth] Profile:", profileData);
+    const instagramId = igAccount.id;
+    const instagramUsername = igAccount.username;
 
-    const instagramId = profileData.user_id || userId || profileData.id;
-
-    // ── Step 4: Save to database ──
+    // ── Step 3: Save to Database ──
+    // Find our internal user
     const dbUser = await db.user.findUnique({
-      where: { clerkId: user.id },
+      where: { clerkId: clerkId }
     });
 
-    if (!dbUser) {
-      return NextResponse.redirect(`${HOST_URL}/integrations?error=user_not_found`);
-    }
+    if (!dbUser) throw new Error("User not found in database");
 
-    const existing = await db.integrations.findFirst({
+    // Upsert integration
+    await db.integrations.upsert({
       where: {
+        userId_name: {
+          userId: dbUser.id,
+          name: "INSTAGRAM"
+        }
+      },
+      update: {
+        token: accessToken,
+        instagramId: instagramId,
+        expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000) // 60 days approx
+      },
+      create: {
         userId: dbUser.id,
         name: "INSTAGRAM",
-      },
+        token: accessToken,
+        instagramId: instagramId,
+        expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000)
+      }
     });
 
-    const integrationData = {
-      token: accessToken,
-      instagramId: instagramId?.toString() || null,
-      expiresAt: new Date(Date.now() + expiresIn * 1000),
-    };
+    console.log(`[OAuth] Successfully connected Instagram: @${instagramUsername}`);
+    
+    revalidatePath("/integrations");
+    return NextResponse.redirect(`${origin}/integrations?success=true`);
 
-    if (existing) {
-      await db.integrations.update({
-        where: { id: existing.id },
-        data: integrationData,
-      });
-    } else {
-      await db.integrations.create({
-        data: {
-          userId: dbUser.id,
-          name: "INSTAGRAM",
-          ...integrationData,
-        },
-      });
-    }
-
-    console.log("[OAuth] ✅ Instagram integration saved successfully!");
-    return NextResponse.redirect(`${HOST_URL}/integrations?success=connected`);
-  } catch (error) {
-    console.error("[OAuth] Unhandled error:", error);
-    const errorMsg = encodeURIComponent(
-      error instanceof Error ? error.message : "Unknown error during connection"
-    );
-    return NextResponse.redirect(`${HOST_URL}/integrations?error=${errorMsg}`);
+  } catch (err) {
+    console.error("[OAuth Callback] Unexpected Error:", err);
+    return NextResponse.redirect(`${origin}/integrations?error=internal_error`);
   }
 }

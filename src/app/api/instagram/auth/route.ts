@@ -3,11 +3,6 @@ import { currentUser } from "@clerk/nextjs/server";
 
 export const dynamic = 'force-dynamic';
 
-/**
- * GET /api/instagram/auth
- * 
- * Initiates Instagram OAuth via Facebook Login for Business.
- */
 export async function GET(req: Request) {
   const user = await currentUser();
   if (!user) {
@@ -16,39 +11,23 @@ export async function GET(req: Request) {
 
   const clientId = process.env.INSTAGRAM_CLIENT_ID;
   
-  // Use current request origin if possible, otherwise fallback to env
+  // Use current request origin directly for absolute matching
   const { origin } = new URL(req.url);
-  const host = origin.includes('localhost') ? (process.env.NEXT_PUBLIC_HOST_URL || origin) : origin;
-  const redirectUri = `${host}/api/instagram/callback`;
+  const redirectUri = `${origin}/api/instagram/callback`;
 
   if (!clientId) {
-    return NextResponse.json(
-      { error: "Instagram API credentials not configured" }, 
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Instagram API credentials not configured" }, { status: 500 });
   }
 
-  // Facebook Login for Business OAuth endpoint
   const authUrl = new URL("https://www.facebook.com/v21.0/dialog/oauth");
   authUrl.searchParams.set("client_id", clientId);
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("scope", "instagram_manage_comments");
 
-  // Start with only valid scopes
-  authUrl.searchParams.set(
-    "scope",
-    "instagram_manage_comments"
-  );
-
-  // State for CSRF protection
-  const state = Buffer.from(JSON.stringify({
-    clerkId: user.id,
-    timestamp: Date.now()
-  })).toString("base64");
+  const state = Buffer.from(JSON.stringify({ clerkId: user.id, timestamp: Date.now() })).toString("base64");
   authUrl.searchParams.set("state", state);
 
-  console.log("[Instagram OAuth] Client ID:", clientId);
-  console.log("[Instagram OAuth] Redirect URI:", redirectUri);
-
+  console.log("[Instagram OAuth] Start Redirect URI:", redirectUri);
   return NextResponse.redirect(authUrl.toString());
 }
