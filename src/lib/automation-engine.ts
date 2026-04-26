@@ -1,4 +1,4 @@
-/**
+5341W    87.   /**
  * Automation Execution Engine
  * Processes incoming Instagram events and triggers automations
  */
@@ -48,12 +48,23 @@ export class AutomationEngine {
     error?: string;
   }> {
     // 1. Find user by Instagram ID (the recipient business account)
-    const integration = await db.integrations.findUnique({
+    let integration = await db.integrations.findUnique({
       where: { instagramId: dm.recipientId },
     });
 
+    // Fallback: If no match by ID, try to find any Instagram integration
+    // This handles cases where Instagram ID wasn't auto-detected during OAuth
     if (!integration) {
-      return { triggered: false, error: "User not found" };
+      integration = await db.integrations.findFirst({
+        where: { 
+          name: "INSTAGRAM",
+          token: { not: "" },
+        },
+      });
+    }
+
+    if (!integration) {
+      return { triggered: false, error: "No Instagram integration found" };
     }
 
     // 2. Get user's active automations

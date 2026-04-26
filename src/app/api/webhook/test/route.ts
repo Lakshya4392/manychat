@@ -4,21 +4,9 @@ import { currentUser } from "@clerk/nextjs/server";
 
 /**
  * POST /api/webhook/test
- * 
  * Simulates an incoming Instagram DM webhook for testing automations.
- * Tests keyword matching and response generation WITHOUT sending real DMs.
- * Only works in development mode with authenticated users.
- * 
- * Body: {
- *   message: string;           // The DM message to simulate
- *   senderUsername?: string;    // Optional sender name
- * }
  */
 export async function POST(req: Request) {
-  if (process.env.NODE_ENV === "production") {
-    return NextResponse.json({ error: "Test endpoint disabled in production" }, { status: 403 });
-  }
-
   const user = await currentUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -36,7 +24,7 @@ export async function POST(req: Request) {
     });
 
     if (!dbUser) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json({ error: "User not found in database" }, { status: 404 });
     }
 
     const integration = dbUser.integrations.find((i) => i.name === "INSTAGRAM");
@@ -44,14 +32,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Instagram not connected. Go to Integrations page first." }, { status: 400 });
     }
 
-    console.log(`\n[Test] 🧪 Simulating DM: "${message}" from @${senderUsername}`);
-
-    // Get user's active automations with all relations
-    const automations = await db.automation.findMany({
-      where: {
-        userId: dbUser.id,
-        active: true,
-      },
+    // Get ALL automations (active or not) for debugging
+    const allAutomations = await db.automation.findMany({
+      where: { userId: dbUser.id },
       include: {
         keywords: true,
         listener: true,
@@ -59,24 +42,45 @@ export async function POST(req: Request) {
       },
     });
 
-    if (automations.length === 0) {
-      console.log("[Test] ❌ No active automations found");
+    // Debug info
+    const debugInfo = allAutomations.map((a) => ({
+      id: a.id,
+      name: a.name,
+      active: a.active,
+      triggers: a.trigger.map((t) => t.type),
+      keywords: a.keywords.map((k) => k.word),
+      listenerType: a.listener?.listener || "NONE",
+      replyMessage: a.listener?.commentReply || "",
+    }));
+
+    // Filter active ones
+    const activeAutomations = allAutomations.filter((a) => a.active);
+
+    if (activeAutomations.length === 0) {
       return NextResponse.json({
-        success: true,
-        result: { triggered: false, error: "No active automations. Activate an automation first." },
+        success: false,
+        error: "No active automations found",
+        debug: {
+          totalAutomations: allAutomations.length,
+          automations: debugInfo,
+          hint: allAutomations.length > 0 
+            ? "You have automations but none are ACTIVE. Toggle the activation switch on." 
+            : "No automations exist. Create one first.",
+        },
       });
     }
-
-    console.log(`[Test] Found ${automations.length} active automation(s)`);
 
     // Find matching automation by keywords
     const messageLower = message.toLowerCase();
     let matchingAutomation = null;
 
-    for (const automation of automations) {
+    for (const automation of activeAutomations) {
+      // Check if automation has a DM trigger (MESSAGE type)
       const hasMessageTrigger = automation.trigger.some((t) => t.type === "MESSAGE");
+      
       if (!hasMessageTrigger) continue;
 
+      // Check keyword match
       const hasKeywordMatch = automation.keywords.some((kw) =>
         messageLower.includes(kw.word.toLowerCase())
       );
@@ -88,37 +92,35 @@ export async function POST(req: Request) {
     }
 
     if (!matchingAutomation) {
-      const allKeywords = automations.flatMap((a) => a.keywords.map((k) => k.word));
-      console.log(`[Test] ❌ No keyword match. Active keywords: [${allKeywords.join(", ")}]`);
+      const allKeywords = activeAutomations.flatMap((a) => a.keywords.map((k) => k.word));
+      const allTriggerTypes = activeAutomations.flatMap((a) => a.trigger.map((t) => t.type));
+      
       return NextResponse.json({
-        success: true,
-        result: {
-          triggered: false,
-          error: `No keyword match. Your active keywords are: [${allKeywords.join(", ")}]. Your message "${message}" didn't contain any of them.`,
+        success: false,
+        error: "No matching automation found",
+        debug: {
+          yourMessage: message,
+          activeAutomations: activeAutomations.length,
+          automations: debugInfo.filter(d => d.active),
+          allActiveKeywords: allKeywords,
+          allActiveTriggerTypes: allTriggerTypes,
+          hint: allKeywords.length === 0 
+            ? "Your automations have NO keywords. Add keywords in the builder."
+            : !allTriggerTypes.includes("MESSAGE")
+            ? "No automation has 'MESSAGE' trigger type. Select 'DM Received' trigger in the builder."
+            : `Your keywords are [${allKeywords.join(", ")}]. Your message "${message}" didn't match any of them.`,
         },
       });
     }
 
-    console.log(`[Test] ✅ Matched automation: "${matchingAutomation.name}"`);
-
-    // Determine response (don't actually send via Instagram API)
+    // Determine response
     let response: string;
-
     if (matchingAutomation.listener?.listener === "SMARTAI") {
-      if (!process.env.OPENAI_API_KEY) {
-        response = "[AI Reply - OPENAI_API_KEY not configured] Would generate AI response using prompt: " + 
-          (matchingAutomation.listener.prompt || "No prompt set");
-      } else {
-        // Would use AI, but for test just show what it would do
-        response = "[AI Reply] Would generate AI response using prompt: " + 
-          (matchingAutomation.listener.prompt || "No prompt set");
-      }
+      response = "[AI Reply] Would generate AI response using prompt: " + 
+        (matchingAutomation.listener.prompt || "No prompt set");
     } else {
       response = matchingAutomation.listener?.commentReply || "Thank you for your message!";
     }
-
-    console.log(`[Test] 💬 Response: "${response}"`);
-    console.log(`[Test] ✅ Test complete — automation would fire successfully!\n`);
 
     // Log test DM to database
     await db.dms.create({
