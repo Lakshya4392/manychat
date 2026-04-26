@@ -23,7 +23,10 @@ export async function GET(req: Request) {
   authUrl.searchParams.set("client_id", clientId);
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
-  authUrl.searchParams.set("scope", "instagram_manage_comments");
+  authUrl.searchParams.set(
+    "scope",
+    "instagram_basic,instagram_manage_comments,pages_show_list,pages_read_engagement"
+  );
 
   const state = Buffer.from(JSON.stringify({ clerkId: user.id, timestamp: Date.now() })).toString("base64");
   authUrl.searchParams.set("state", state);
