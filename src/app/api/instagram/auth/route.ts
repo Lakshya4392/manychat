@@ -22,10 +22,10 @@ export async function GET(req: Request) {
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
   
-  // ONLY use this scope as we know it's valid for your app
+  // ONLY using the ones that said "Ready for testing" in your screenshot
   authUrl.searchParams.set(
     "scope",
-    "instagram_manage_comments"
+    "instagram_business_basic,instagram_business_manage_messages,instagram_manage_comments"
   );
 
   const state = Buffer.from(JSON.stringify({ clerkId: user.id, timestamp: Date.now() })).toString("base64");

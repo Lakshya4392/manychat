@@ -17,6 +17,7 @@ export async function GET(req: Request) {
   }
 
   try {
+    // 1. Verify State & User
     let clerkId: string;
     try {
       const stateJson = JSON.parse(Buffer.from(state || "", "base64").toString());
@@ -33,7 +34,8 @@ export async function GET(req: Request) {
     const clientId = process.env.INSTAGRAM_CLIENT_ID!;
     const clientSecret = process.env.INSTAGRAM_CLIENT_SECRET!;
 
-    // 1. Exchange code for token
+    // 2. Step 1: Exchange code for Short-lived Access Token
+    console.log("[OAuth] Exchanging code for short-lived token...");
     const tokenUrl = new URL("https://graph.facebook.com/v21.0/oauth/access_token");
     tokenUrl.searchParams.set("client_id", clientId);
     tokenUrl.searchParams.set("client_secret", clientSecret);
@@ -44,61 +46,77 @@ export async function GET(req: Request) {
     const tokenData = await tokenRes.json();
 
     if (tokenData.error) {
+      console.error("[OAuth] Token Exchange Error:", tokenData.error);
       return NextResponse.redirect(`${origin}/integrations?error=${encodeURIComponent(tokenData.error.message)}`);
     }
 
-    const accessToken = tokenData.access_token;
-    let instagramId = null;
-    let instagramUsername = "Instagram User";
+    const shortLivedToken = tokenData.access_token;
 
-    // 2. TRY DETECTION - Method A: Direct lookup via /me
-    const meRes = await fetch(`https://graph.facebook.com/v21.0/me?fields=id,name,instagram_business_account&access_token=${accessToken}`);
+    // 3. Step 2: Exchange for Long-lived Access Token (60 days)
+    console.log("[OAuth] Exchanging for long-lived token...");
+    const longLivedUrl = new URL("https://graph.facebook.com/v21.0/oauth/access_token");
+    longLivedUrl.searchParams.set("grant_type", "fb_exchange_token");
+    longLivedUrl.searchParams.set("client_id", clientId);
+    longLivedUrl.searchParams.set("client_secret", clientSecret);
+    longLivedUrl.searchParams.set("fb_exchange_token", shortLivedToken);
+
+    const llTokenRes = await fetch(longLivedUrl.toString());
+    const llTokenData = await llTokenRes.json();
+    const finalAccessToken = llTokenData.access_token || shortLivedToken;
+
+    // 4. Step 3: Identify Instagram Business Account
+    let instagramId = null;
+    
+    // Method A: Try direct business asset lookup
+    const meRes = await fetch(`https://graph.facebook.com/v21.0/me?fields=id,name,instagram_business_account&access_token=${finalAccessToken}`);
     const meData = await meRes.json();
     
     if (meData.instagram_business_account) {
       instagramId = meData.instagram_business_account.id;
     }
 
-    // 3. TRY DETECTION - Method B: Via Accounts/Pages (Standard way)
+    // Method B: Try via Pages lookup (most reliable if pages_show_list is granted)
     if (!instagramId) {
-      const accountsRes = await fetch(`https://graph.facebook.com/v21.0/me/accounts?fields=instagram_business_account{id,username,name}&access_token=${accessToken}`);
+      const accountsRes = await fetch(`https://graph.facebook.com/v21.0/me/accounts?fields=instagram_business_account{id,username}&access_token=${finalAccessToken}`);
       const accountsData = await accountsRes.json();
-      
       const pageWithIg = accountsData.data?.find((p: any) => p.instagram_business_account);
       if (pageWithIg) {
         instagramId = pageWithIg.instagram_business_account.id;
-        instagramUsername = pageWithIg.instagram_business_account.username || instagramUsername;
       }
     }
 
-    // 4. TRY DETECTION - Method C: Search specifically for Instagram accounts
-    if (!instagramId) {
-       // Last ditch effort: try to see if there are any IG IDs in the linked_instagram_accounts
-       const igRes = await fetch(`https://graph.facebook.com/v21.0/me?fields=linked_instagram_accounts&access_token=${accessToken}`);
-       const igData = await igRes.json();
-       instagramId = igData.linked_instagram_accounts?.data?.[0]?.id;
-    }
-
-    if (!instagramId) {
-      console.error("[OAuth] Could not find any Instagram Business account. Data received:", JSON.stringify(meData));
-      return NextResponse.redirect(`${origin}/integrations?error=no_instagram_account&description=Please%20ensure%20your%20Instagram%20is%20a%20Business%20account%20and%20linked%20to%20a%20Facebook%20Page.`);
-    }
-
-    // 5. Save/Update in DB
+    // 5. Finalize Database Update
     const dbUser = await db.user.findUnique({ where: { clerkId: clerkId } });
-    if (!dbUser) throw new Error("User not found");
+    if (!dbUser) throw new Error("User not found in DB");
 
+    // We save whatever ID we found, or even empty if we just want to save the token for now
     await db.integrations.upsert({
       where: { userId_name: { userId: dbUser.id, name: "INSTAGRAM" } },
-      update: { token: accessToken, instagramId: instagramId, expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000) },
-      create: { userId: dbUser.id, name: "INSTAGRAM", token: accessToken, instagramId: instagramId, expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000) }
+      update: { 
+        token: finalAccessToken, 
+        instagramId: instagramId || "", 
+        expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000) 
+      },
+      create: { 
+        userId: dbUser.id, 
+        name: "INSTAGRAM", 
+        token: finalAccessToken, 
+        instagramId: instagramId || "", 
+        expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000) 
+      }
     });
 
+    console.log("[OAuth] Success! Integration updated.");
     revalidatePath("/integrations");
+    
+    if (!instagramId) {
+       return NextResponse.redirect(`${origin}/integrations?success=true&error=no_instagram_id_found`);
+    }
+
     return NextResponse.redirect(`${origin}/integrations?success=true`);
 
   } catch (err) {
-    console.error("[OAuth Callback] Unexpected Error:", err);
-    return NextResponse.redirect(`${origin}/integrations?error=internal_error`);
+    console.error("[OAuth Callback] Fatal Error:", err);
+    return NextResponse.redirect(`${origin}/integrations?error=internal_server_error`);
   }
 }
