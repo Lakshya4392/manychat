@@ -22,11 +22,10 @@ export async function GET(req: Request) {
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
   
-  // These 3 are the core scopes for Instagram Business automation
-  // If this fails, even one of these is not enabled in your Meta App
+  // Matching exact scopes listed in Meta Dashboard Box 1
   authUrl.searchParams.set(
     "scope",
-    "instagram_basic,instagram_manage_comments,pages_show_list"
+    "instagram_business_basic,instagram_manage_comments,instagram_business_manage_messages"
   );
 
   const state = Buffer.from(JSON.stringify({ clerkId: user.id, timestamp: Date.now() })).toString("base64");
