@@ -22,10 +22,10 @@ export async function GET(req: Request) {
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
   
-  // Reverting to the only scope that we know was working
+  // These are the absolute minimum to find and manage an Instagram Business account
   authUrl.searchParams.set(
     "scope",
-    "instagram_manage_comments"
+    "instagram_basic,instagram_manage_comments,pages_show_list"
   );
 
   const state = Buffer.from(JSON.stringify({ clerkId: user.id, timestamp: Date.now() })).toString("base64");
