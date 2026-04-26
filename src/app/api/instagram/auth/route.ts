@@ -23,9 +23,10 @@ export async function GET(req: Request) {
   authUrl.searchParams.set("client_id", clientId);
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
+  // Correct scopes for Facebook Login for Business
   authUrl.searchParams.set(
     "scope",
-    "instagram_basic,instagram_manage_comments,pages_show_list,pages_read_engagement"
+    "instagram_business_basic,instagram_business_manage_comments,instagram_business_manage_messages"
   );
 
   const state = Buffer.from(JSON.stringify({ clerkId: user.id, timestamp: Date.now() })).toString("base64");
