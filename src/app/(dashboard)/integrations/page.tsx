@@ -37,6 +37,7 @@ export default async function IntegrationsPage({
 
   const success = typeof resolvedParams.success === 'string' ? resolvedParams.success : undefined;
   const error = typeof resolvedParams.error === 'string' ? resolvedParams.error : undefined;
+  const warning = typeof resolvedParams.warning === 'string' ? resolvedParams.warning : undefined;
   const errorDescription = typeof resolvedParams.description === 'string' ? resolvedParams.description : undefined;
 
   return (
@@ -57,7 +58,12 @@ export default async function IntegrationsPage({
           ✅ Instagram connected successfully!
         </div>
       )}
-      {error && (
+      {warning && (
+        <div className="mb-6 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-sm">
+          ⚠️ Connected but Instagram ID could not be auto-detected. Try clicking Reconnect once more, or automation will still work via token.
+        </div>
+      )}
+      {error && !success && (
         <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
           ❌ Connection failed: {decodeURIComponent(error)}
           {errorDescription && (
