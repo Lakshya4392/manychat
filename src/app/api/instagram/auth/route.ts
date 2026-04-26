@@ -22,10 +22,10 @@ export async function GET(req: Request) {
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
   
-  // Matching exact scopes listed in Meta Dashboard Box 1
+  // Reverting to the only scope that we know was working
   authUrl.searchParams.set(
     "scope",
-    "instagram_business_basic,instagram_manage_comments,instagram_business_manage_messages"
+    "instagram_manage_comments"
   );
 
   const state = Buffer.from(JSON.stringify({ clerkId: user.id, timestamp: Date.now() })).toString("base64");
