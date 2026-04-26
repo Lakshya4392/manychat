@@ -1,23 +1,22 @@
 import type { Metadata } from "next";
-import { Outfit, Inter, Geist } from "next/font/google";
+import { Outfit, Inter } from "next/font/google";
 import "./globals.css";
-import { cn } from "@/lib/utils";
-
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+import { ClerkProvider } from "@clerk/nextjs";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
 
 const outfit = Outfit({
-  variable: "--font-outfit",
   subsets: ["latin"],
+  variable: "--font-outfit",
 });
 
 const inter = Inter({
-  variable: "--font-inter",
   subsets: ["latin"],
+  variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
-  title: "Modern Next.js Template",
-  description: "A premium Next.js setup with Tailwind CSS and modern aesthetics",
+  title: "Slide | Premium Automation Platform",
+  description: "Automate your workflows with the next-generation premium dashboard.",
 };
 
 export default function RootLayout({
@@ -26,12 +25,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("h-full", "font-sans", geist.variable)}>
-      <body
-        className={`${outfit.variable} ${inter.variable} antialiased min-h-full flex flex-col`}
-      >
-        {children}
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en" suppressHydrationWarning>
+        <body
+          className={`${outfit.variable} ${inter.variable} antialiased font-sans bg-[#09090b] text-white`}
+        >
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+          </ThemeProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
