@@ -10,8 +10,6 @@ export async function GET(req: Request) {
   }
 
   const clientId = process.env.INSTAGRAM_CLIENT_ID;
-  
-  // Use current request origin directly for absolute matching
   const { origin } = new URL(req.url);
   const redirectUri = `${origin}/api/instagram/callback`;
 
@@ -23,15 +21,16 @@ export async function GET(req: Request) {
   authUrl.searchParams.set("client_id", clientId);
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
-  // Correct scopes for Facebook Login for Business
+  
+  // These 3 are the core scopes for Instagram Business automation
+  // If this fails, even one of these is not enabled in your Meta App
   authUrl.searchParams.set(
     "scope",
-    "instagram_business_basic,instagram_business_manage_comments,instagram_business_manage_messages"
+    "instagram_basic,instagram_manage_comments,pages_show_list"
   );
 
   const state = Buffer.from(JSON.stringify({ clerkId: user.id, timestamp: Date.now() })).toString("base64");
   authUrl.searchParams.set("state", state);
 
-  console.log("[Instagram OAuth] Start Redirect URI:", redirectUri);
   return NextResponse.redirect(authUrl.toString());
 }
