@@ -108,12 +108,12 @@ export default async function IntegrationsPage({
               </div>
             )}
 
-            <Link
+            <a
               href="/api/instagram/auth"
               className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-400 text-white hover:opacity-90 hover:shadow-lg hover:shadow-pink-500/25"
             >
               {isInstagramConnected ? (isTokenExpired ? "Reconnect" : "Reconnect") : "Connect Instagram"}
-            </Link>
+            </a>
           </div>
         </div>
 
