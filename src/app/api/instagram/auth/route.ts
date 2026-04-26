@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/instagram/auth
  * 

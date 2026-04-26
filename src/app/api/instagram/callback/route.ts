@@ -14,6 +14,8 @@ const HOST_URL = process.env.NEXT_PUBLIC_HOST_URL || "http://localhost:3000";
  *   3. Get Instagram user profile
  *   4. Save token + Instagram ID to database
  */
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
