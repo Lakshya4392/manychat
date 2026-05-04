@@ -83,6 +83,25 @@ export async function GET(req: Request) {
       console.error("[OAuth] Failed to fetch pages/tokens:", e);
     }
 
+    if (!instagramId) {
+      try {
+        console.log("[OAuth] Page search failed, trying direct lookup...");
+        const meRes = await fetch(
+          `https://graph.facebook.com/v21.0/me?fields=id,name,instagram_business_account&access_token=${accessToken}`
+        );
+        const meData = await meRes.json();
+        if (meData.instagram_business_account?.id) {
+          instagramId = meData.instagram_business_account.id;
+          // Note: We still use the user accessToken here as a fallback, 
+          // though some messaging features might need a page token.
+          pageAccessToken = accessToken; 
+          console.log(`[OAuth] Found IG Account via direct lookup: ${instagramId}`);
+        }
+      } catch (e) {
+        console.error("[OAuth] Direct lookup failed:", e);
+      }
+    }
+
     if (!instagramId || !pageAccessToken) {
         console.error("[OAuth] No Instagram Business Account or Page Token found.");
         return NextResponse.redirect(`${origin}/integrations?error=no_instagram_business_account`);

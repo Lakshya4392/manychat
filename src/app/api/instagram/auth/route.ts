@@ -28,8 +28,16 @@ export async function GET(req: Request) {
     // Use config_id (required for Facebook Login for Business)
     authUrl.searchParams.set("config_id", configId);
   } else {
-    // Fallback to scope if no config_id is set
-    authUrl.searchParams.set("scope", "instagram_manage_comments");
+    // Fallback to full scopes required for messaging
+    const scopes = [
+      "instagram_basic",
+      "instagram_manage_messages",
+      "instagram_manage_comments",
+      "pages_show_list",
+      "pages_read_engagement",
+      "pages_manage_metadata"
+    ];
+    authUrl.searchParams.set("scope", scopes.join(","));
   }
 
   const state = Buffer.from(JSON.stringify({ clerkId: user.id, timestamp: Date.now() })).toString("base64");
