@@ -10,16 +10,22 @@ interface DashboardCardProps {
 
 export default function DashboardCard({ title, description, footerText, className = "" }: DashboardCardProps) {
   return (
-    <div className={`card-glow p-6 flex flex-col justify-between min-h-[220px] group cursor-pointer hover:border-primary/20 transition-all ${className}`}>
+    <div className={`group relative p-[32px] flex flex-col justify-between min-h-[160px] bg-white border border-black/[0.08] rounded-xl overflow-hidden transition-all hover:shadow-sm ${className}`}>
       <div>
-        <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
-        <p className="text-sm text-zinc-500 leading-relaxed">{description}</p>
+        <h3 className="text-[14px] font-bold text-black tracking-tight mb-1.5 leading-tight">{title}</h3>
+        <p className="text-[13px] text-gray-500 leading-relaxed">{description}</p>
       </div>
-      
-      <div className="flex items-center justify-between mt-6">
-        {footerText && <p className="text-xs text-zinc-500 font-medium">{footerText}</p>}
-        <div className="p-2 bg-primary/10 rounded-full text-primary group-hover:bg-primary group-hover:text-white transition-all shadow-lg shadow-primary/10">
-          <ArrowRight className="w-5 h-5" />
+
+      <div className="flex items-center justify-between mt-5">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Engine Status</span>
+          <div className="flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
+            <span className="text-[11px] font-semibold text-black tracking-tight">Active Sync</span>
+          </div>
+        </div>
+        <div className="w-8 h-8 bg-gray-100 text-black rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-300">
+          <ArrowRight className="w-3.5 h-3.5" />
         </div>
       </div>
     </div>

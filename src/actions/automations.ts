@@ -1,17 +1,17 @@
 "use server";
 
-import { currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { checkLimit } from "@/lib/subscription";
 
 export const createAutomation = async () => {
-  const user = await currentUser();
-  if (!user) return { status: 401 };
+  const { userId } = await auth();
+  if (!userId) return { status: 401 };
 
   try {
     const userExist = await db.user.findUnique({
-      where: { clerkId: user.id },
+      where: { clerkId: userId },
     });
 
     if (!userExist) return { status: 404, message: "User not found" };
@@ -69,12 +69,12 @@ export const createAutomation = async () => {
 };
 
 export const getAutomations = async () => {
-  const user = await currentUser();
-  if (!user) return { status: 401 };
+  const { userId } = await auth();
+  if (!userId) return { status: 401 };
 
   try {
     const userExist = await db.user.findUnique({
-      where: { clerkId: user.id },
+      where: { clerkId: userId },
       include: {
         automations: {
           include: {
@@ -101,14 +101,14 @@ export const getAutomations = async () => {
 
 export const updateAutomation = async (
   id: string,
-  data: { name?: string; active?: boolean }
+  data: { name?: string; active?: boolean; isSemantic?: boolean }
 ) => {
-  const user = await currentUser();
-  if (!user) return { status: 401 };
+  const { userId } = await auth();
+  if (!userId) return { status: 401 };
 
   try {
     const dbUser = await db.user.findUnique({
-      where: { clerkId: user.id },
+      where: { clerkId: userId },
     });
     if (!dbUser) return { status: 404, message: "User not found" };
 
@@ -135,13 +135,52 @@ export const updateAutomation = async (
   }
 };
 
+export const onUpdateAutomationPosts = async (
+  automationId: string,
+  posts: { postid: string; caption?: string; media: string; mediaType: "IMAGE" | "VIDEO" | "CAROSEL_ALBUM" }[]
+) => {
+  const { userId } = await auth();
+  if (!userId) return { status: 401 };
+
+  try {
+    // 1. Delete existing posts for this automation
+    await db.post.deleteMany({
+      where: { automationId },
+    });
+
+    // 2. Create new posts
+    const created = await db.automation.update({
+      where: { id: automationId },
+      data: {
+        posts: {
+          create: posts.map((p) => ({
+            postid: p.postid,
+            caption: p.caption,
+            media: p.media,
+            mediaType: p.mediaType,
+          })),
+        },
+      },
+    });
+
+    if (created) {
+      revalidatePath(`/automations/${automationId}`);
+      return { status: 200, message: "Posts linked successfully" };
+    }
+    return { status: 400 };
+  } catch (error) {
+    console.error(error);
+    return { status: 500 };
+  }
+};
+
 export const getAutomationDetails = async (id: string) => {
-  const user = await currentUser();
-  if (!user) return { status: 401 };
+  const { userId } = await auth();
+  if (!userId) return { status: 401 };
 
   try {
     const dbUser = await db.user.findUnique({
-      where: { clerkId: user.id },
+      where: { clerkId: userId },
     });
     if (!dbUser) return { status: 404, message: "User not found" };
 
@@ -151,6 +190,7 @@ export const getAutomationDetails = async (id: string) => {
         keywords: true,
         trigger: true,
         listener: true,
+        posts: true,
       },
     });
 

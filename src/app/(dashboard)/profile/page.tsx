@@ -1,15 +1,16 @@
 import React from "react";
-import { User, Shield, Zap, TrendingUp, CreditCard } from "lucide-react";
-import { currentUser } from "@clerk/nextjs/server";
+import { User, Shield, Zap, TrendingUp, CreditCard, Sparkles, ShieldCheck } from "lucide-react";
+import { auth } from "@clerk/nextjs/server";
 import { Badge } from "@/components/ui/badge";
 import { db } from "@/lib/db";
+import BrandContextForm from "@/components/profile/BrandContextForm";
 
 export default async function ProfilePage() {
-  const user = await currentUser();
+  const { userId } = await auth();
 
   // Get user with subscription from DB
   const dbUser = await db.user.findUnique({
-    where: { clerkId: user?.id || "" },
+    where: { clerkId: userId || "" },
     include: {
       subscription: true,
       _count: {
@@ -24,156 +25,149 @@ export default async function ProfilePage() {
   const plan = dbUser?.subscription?.plan || "FREE";
   const automationsCount = dbUser?._count?.automations || 0;
   const integrationsCount = dbUser?._count?.integrations || 0;
-
-  // Calculate totals
-  const totalDMs = 0; // Placeholder - query from Usage/DMs
+  const brandContext = dbUser?.brandContext || "";
 
   // Safe date formatting
   const joinedDate = dbUser?.createdAt
-    ? new Date(dbUser.createdAt).toLocaleDateString("en-US", {
-        month: "long",
-        year: "numeric",
-      })
-    : "Unknown";
+    ? new Date(dbUser.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    : "Recently";
 
   const stats = [
-    { label: "Automations Created", value: automationsCount.toString(), icon: Zap, color: "text-primary" },
-    { label: "Total DMs Sent", value: totalDMs.toString(), icon: TrendingUp, color: "text-green-500" },
-    { label: "Active Integrations", value: integrationsCount.toString(), icon: Shield, color: "text-indigo-500" },
+    { label: "Active Automations", value: automationsCount.toString(), icon: Zap },
+    { label: "Engine Strength", value: "88%", icon: TrendingUp },
+    { label: "Connected Nodes", value: integrationsCount.toString(), icon: Shield },
   ];
 
   return (
-    <div className="flex flex-col gap-10">
-      <div className="flex items-center gap-3">
-        <div className="p-3 bg-primary/10 rounded-2xl border border-primary/20">
-          <User className="w-6 h-6 text-primary" />
+    <div className="flex flex-col gap-[32px] pb-[64px]">
+      {/* ─── Header ─── */}
+      <div className="flex flex-col gap-[12px]">
+        <div className="flex items-center gap-[12px]">
+            <span className="text-[11px] font-medium text-slate uppercase tracking-wider">Identity Core</span>
+            <div className="flex items-center gap-[8px] px-[12px] py-[6px] bg-ink-black/5 border border-ink-black/10 rounded-lg">
+                <ShieldCheck size={14} className="text-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)] rounded-full bg-emerald-500/10" />
+                <span className="text-[10px] font-medium uppercase tracking-wider text-ink-black">Verified Profile</span>
+            </div>
         </div>
-        <h1 className="text-3xl font-extrabold text-white tracking-tight">Profile</h1>
+        <h1 className="text-[32px] font-semibold text-ink-black tracking-tight">Profile Management</h1>
+        <p className="text-[14px] text-slate font-medium max-w-md leading-relaxed">
+            Manage your credentials, subscription status, and brand identity.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: User Details */}
-        <div className="lg:col-span-2 flex flex-col gap-8">
-          <div className="bg-[#121215] border border-white/5 rounded-[2.5rem] p-10 flex flex-col md:flex-row gap-8 items-center md:items-start relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-3xl" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-[24px]">
+        {/* Left */}
+        <div className="lg:col-span-2 flex flex-col gap-[24px]">
+          <div className="bg-white border border-ink-black/5 rounded-2xl p-[32px] flex flex-col md:flex-row gap-[24px] items-center md:items-start relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)]">
+            <div className="absolute top-0 right-0 w-64 h-64 spectrum-glow opacity-5 pointer-events-none" />
 
-            <div className="w-32 h-32 rounded-3xl border-4 border-white/10 overflow-hidden shadow-2xl">
+            <div className="w-[96px] h-[96px] rounded-2xl border border-ink-black/5 overflow-hidden shadow-sm shrink-0 bg-canvas">
               <img
-                src={user?.imageUrl || "https://github.com/shadcn.png"}
+                src={dbUser?.imageUrl || "https://github.com/shadcn.png"}
                 alt="Profile"
                 className="w-full h-full object-cover"
               />
             </div>
 
-            <div className="flex flex-col gap-4 flex-grow text-center md:text-left">
-              <div className="flex flex-col gap-1">
-                <h2 className="text-3xl font-bold text-white tracking-tight">
-                  {user?.fullName || "User Name"}
+            <div className="flex flex-col gap-[12px] flex-grow text-center md:text-left">
+              <div className="flex flex-col gap-[4px]">
+                <h2 className="text-[24px] font-semibold text-ink-black tracking-tight">
+                  {dbUser?.name || "User Name"}
                 </h2>
-                <p className="text-sm text-zinc-500 font-medium">
-                  {user?.primaryEmailAddress?.emailAddress}
+                <p className="text-[14px] text-slate font-medium">
+                  {dbUser?.email || "user@example.com"}
                 </p>
               </div>
 
-              <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-2">
-                <Badge
-                  variant="outline"
-                  className={`rounded-xl px-4 py-1.5 border-none font-bold text-[10px] uppercase tracking-widest leading-none ${
-                    plan === "PRO"
-                      ? "bg-gradient-to-r from-primary to-accent text-white shadow-lg shadow-primary/20"
-                      : "bg-white/5 text-zinc-400 border-white/5"
-                  }`}
-                >
-                  {plan === "PRO" ? "Pro Plan" : "Free Plan"}
-                </Badge>
-                 <Badge
-                   variant="outline"
-                   className="rounded-xl px-4 py-1.5 bg-white/5 border-white/5 text-zinc-400 font-bold text-[10px] uppercase tracking-widest leading-none"
-                 >
-                   Joined {joinedDate}
-                 </Badge>
+              <div className="flex flex-wrap justify-center md:justify-start gap-[8px] mt-[4px]">
+                <div className={`px-[12px] py-[6px] rounded-lg font-medium text-[10px] uppercase tracking-wider ${plan === "PRO"
+                       ? "bg-ink-black text-white"
+                       : "bg-canvas border border-ink-black/5 text-slate"
+                    }`}>
+                  {plan === "PRO" ? "Intelligence Tier" : "Lite Tier"}
+                </div>
+                <div className="px-[12px] py-[6px] bg-canvas border border-ink-black/5 rounded-lg text-slate font-medium text-[10px] uppercase tracking-wider">
+                  Joined {joinedDate}
+                </div>
               </div>
             </div>
 
-            <button className="md:ml-auto px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/5 text-white rounded-2xl text-xs font-bold transition-all transform active:scale-95">
-              Edit Profile
+            <button className="md:ml-auto px-[24px] py-[12px] bg-canvas hover:bg-ink-black hover:text-white border border-ink-black/5 text-slate rounded-xl text-[13px] font-semibold shadow-sm transition-all transform active:scale-95 shrink-0">
+              Edit Metadata
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-[16px]">
             {stats.map((stat) => (
-              <div
-                key={stat.label}
-                className="bg-[#121215] border border-white/5 rounded-[2rem] p-8 flex flex-col gap-4 group hover:border-white/10 transition-all"
-              >
-                <div className="p-3 bg-white/5 rounded-2xl w-fit group-hover:bg-primary/5 transition-all">
-                  <stat.icon className={`w-5 h-5 ${stat.color}`} />
+              <div key={stat.label} className="bg-white border border-ink-black/5 rounded-2xl p-[24px] flex flex-col gap-[16px] group hover:shadow-sm hover:border-ink-black/10 transition-all">
+                <div className="w-[48px] h-[48px] bg-canvas rounded-2xl flex items-center justify-center border border-ink-black/5 group-hover:scale-105 transition-all">
+                  <stat.icon size={24} className="text-slate group-hover:text-ink-black transition-colors" />
                 </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-2xl font-bold text-white">{stat.value}</span>
-                  <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
-                    {stat.label}
-                  </span>
+                <div className="flex flex-col gap-[4px]">
+                  <span className="text-[28px] font-semibold text-ink-black tracking-tight leading-none">{stat.value}</span>
+                  <span className="text-[11px] text-slate font-medium uppercase tracking-wider">{stat.label}</span>
                 </div>
               </div>
             ))}
           </div>
+
+          {/* Brand Context */}
+          <div className="bg-white border border-ink-black/5 rounded-2xl p-[32px] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] relative overflow-hidden">
+             <div className="absolute -right-8 -top-8 w-32 h-32 spectrum-glow opacity-5 pointer-events-none" />
+             <BrandContextForm initialValue={brandContext} />
+          </div>
         </div>
 
-        {/* Right Column: Billing/Subscription info */}
-        <div className="flex flex-col gap-8">
-          <div className="bg-[#121215] border border-white/5 rounded-[2.5rem] p-8 flex flex-col gap-6 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl opacity-50" />
+        {/* Right */}
+        <div className="flex flex-col gap-[24px]">
+          <div className="bg-white border border-ink-black/5 rounded-2xl p-[32px] flex flex-col gap-[24px] relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)]">
+            <div className="absolute top-0 right-0 w-24 h-24 spectrum-glow opacity-5 pointer-events-none" />
 
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-500/10 rounded-xl border border-indigo-500/20">
-                <CreditCard className="w-5 h-5 text-indigo-500" />
+            <div className="flex items-center gap-[12px]">
+              <div className="w-[48px] h-[48px] bg-canvas rounded-2xl flex items-center justify-center border border-ink-black/5">
+                <CreditCard size={24} className="text-slate" />
               </div>
-              <h3 className="text-lg font-bold text-white">Subscription</h3>
+              <h3 className="text-[20px] font-semibold text-ink-black tracking-tight">Infrastructure</h3>
             </div>
 
-            <div className="flex flex-col gap-4">
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-zinc-500">Current Plan</span>
-                <span
-                  className={`font-bold ${
-                    plan === "PRO" ? "text-primary" : "text-white"
-                  }`}
-                >
-                  {plan === "PRO" ? "Pro" : "Free"}
+            <div className="flex flex-col gap-[16px]">
+              <div className="flex justify-between items-center text-[14px]">
+                <span className="text-slate font-medium">Core Plan</span>
+                <span className="font-semibold text-ink-black uppercase tracking-wider text-[11px]">
+                  {plan === "PRO" ? "Intelligence" : "Lite"}
                 </span>
               </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-zinc-500">Billing Cycle</span>
-                <span className="text-white font-bold">
-                  {plan === "PRO" ? "Monthly" : "N/A"}
+              <div className="flex justify-between items-center text-[14px]">
+                <span className="text-slate font-medium">Cycle Status</span>
+                <span className="text-ink-black font-semibold uppercase tracking-wider text-[11px]">
+                  {plan === "PRO" ? "Active Sync" : "Restricted"}
                 </span>
               </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-zinc-500">Automations</span>
-                <span className="text-white font-bold">
+              <div className="flex justify-between items-center text-[14px]">
+                <span className="text-slate font-medium">Flow Capacity</span>
+                <span className="text-ink-black font-semibold uppercase tracking-wider text-[11px]">
                   {automationsCount} / {plan === "PRO" ? "∞" : "3"}
                 </span>
               </div>
             </div>
 
-            {plan !== "PRO" && (
-              <button className="w-full py-4 bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white rounded-[1.5rem] text-sm font-black transition-all shadow-xl shadow-primary/20 transform active:scale-95 mt-2">
-                Upgrade to Pro
+            {plan !== "PRO" ? (
+              <button className="w-full py-[12px] bg-ink-black text-white rounded-xl text-[13px] font-semibold transition-all shadow-sm transform active:scale-95 mt-[8px] hover:bg-ink-black/90">
+                Unlock Intelligence
               </button>
-            )}
-
-            {plan === "PRO" && (
-              <button className="w-full py-4 bg-white/5 hover:bg-white/10 text-white rounded-[1.5rem] text-sm font-bold transition-all border border-white/5 mt-2">
-                Manage Subscription
+            ) : (
+              <button className="w-full py-[12px] bg-white hover:bg-ink-black hover:text-white text-slate rounded-xl text-[13px] font-semibold transition-all border border-ink-black/5 shadow-sm mt-[8px]">
+                Manage Billing
               </button>
             )}
           </div>
 
-          <div className="bg-[#121215]/50 border border-white/5 border-dashed rounded-[2.5rem] p-8 flex flex-col items-center justify-center text-center gap-3">
-            <Shield className="w-6 h-6 text-zinc-700" />
-            <p className="text-xs text-zinc-600 font-bold leading-relaxed">
-              Account security is monitored and protected.
+          <div className="bg-canvas border border-ink-black/5 border-dashed rounded-2xl p-[32px] flex flex-col items-center justify-center text-center gap-[16px] group">
+            <div className="w-[48px] h-[48px] bg-white rounded-2xl flex items-center justify-center border border-ink-black/5 shadow-sm group-hover:scale-105 transition-all">
+                <ShieldCheck size={24} className="text-slate/40 group-hover:text-emerald-500 transition-colors" />
+            </div>
+            <p className="text-[13px] text-slate font-medium leading-relaxed max-w-[200px]">
+              Engine security is autonomously monitored and protected.
             </p>
           </div>
         </div>

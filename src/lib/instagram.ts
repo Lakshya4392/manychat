@@ -149,6 +149,24 @@ class InstagramClient {
   }
 
   /**
+   * Get specific media (post) info including caption
+   * GET /{media-id}?fields=id,caption,media_type,media_url,permalink,timestamp
+   */
+  async getMediaInfo(mediaId: string, accessToken: string): Promise<InstagramMedia> {
+    const url = new URL(`${GRAPH_API_URL}/${mediaId}`);
+    url.searchParams.set("fields", "id,caption,media_type,media_url,permalink,timestamp");
+    url.searchParams.set("access_token", accessToken);
+
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Failed to fetch media info: ${error.error?.message || JSON.stringify(error)}`);
+    }
+
+    return response.json();
+  }
+
+  /**
    * Get media comments
    * GET /{media-id}/comments
    */
@@ -195,6 +213,34 @@ class InstagramClient {
 
     const data = await response.json();
     return { commentId: data.id };
+  }
+
+  /**
+   * Send a private reply (DM) to a comment
+   * POST /{comment-id}/private_replies
+   */
+  async sendPrivateReply(commentId: string, message: string, accessToken: string): Promise<{
+    id: string;
+  }> {
+    const url = new URL(`${GRAPH_API_URL}/${commentId}/private_replies`);
+    url.searchParams.set("access_token", accessToken);
+
+    const response = await fetch(url.toString(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: message,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Failed to send private reply: ${error.error?.message || JSON.stringify(error)}`);
+    }
+
+    return response.json();
   }
 
    /**

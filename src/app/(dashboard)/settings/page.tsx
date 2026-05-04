@@ -1,8 +1,10 @@
+"use client";
+
 import React from "react";
-import { Settings, Bell, Palette, ChevronRight } from "lucide-react";
+import { Settings, Bell, Palette, ChevronRight, Globe, Lock, ShieldCheck } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
-type SettingsItem = 
+type SettingsItem =
   | { type: "select"; label: string; value: string; }
   | { type: "switch"; label: string; defaultChecked: boolean; };
 
@@ -16,90 +18,100 @@ interface Section {
 export default function SettingsPage() {
   const sections: Section[] = [
     {
-      title: "General",
-      icon: Settings,
-      color: "text-primary",
+      title: "System Config", icon: Globe, color: "text-ink-black",
       items: [
-        { type: "select", label: "Language", value: "English (US)" },
-        { type: "select", label: "Timezone", value: "(GMT+05:30) Mumbai, Kolkata" },
+        { type: "select", label: "Regional Language", value: "English (US)" },
+        { type: "select", label: "Engine Timezone", value: "(GMT+05:30) Mumbai" },
       ]
     },
     {
-      title: "Notifications",
-      icon: Bell,
-      color: "text-amber-500",
+      title: "Engine Notifications", icon: Bell, color: "text-ink-black",
       items: [
-        { type: "switch", label: "Email Notifications", defaultChecked: true },
-        { type: "switch", label: "Desktop Notifications", defaultChecked: false },
-        { type: "switch", label: "Browser Audio", defaultChecked: true },
+        { type: "switch", label: "Lead Capture Alerts", defaultChecked: true },
+        { type: "switch", label: "Daily Summary Report", defaultChecked: false },
+        { type: "switch", label: "Critical System Alerts", defaultChecked: true },
       ]
     },
     {
-      title: "Appearance",
-      icon: Palette,
-      color: "text-indigo-500",
+      title: "Interface", icon: Palette, color: "text-ink-black",
       items: [
-        { type: "switch", label: "Dark Mode", defaultChecked: true },
+        { type: "switch", label: "High Contrast Mode", defaultChecked: false },
         { type: "switch", label: "Reduced Motion", defaultChecked: false },
+      ]
+    },
+    {
+      title: "Access Control", icon: Lock, color: "text-ink-black",
+      items: [
+        { type: "switch", label: "Multi-Factor Authentication", defaultChecked: true },
+        { type: "switch", label: "Public API Access", defaultChecked: false },
       ]
     }
   ];
 
   return (
-    <div className="flex flex-col gap-10">
-      <div className="flex items-center gap-3">
-        <div className="p-3 bg-primary/10 rounded-2xl border border-primary/20">
-          <Settings className="w-6 h-6 text-primary" />
+    <div className="flex flex-col gap-8">
+      {/* ─── Header ─── */}
+      <div className="flex flex-col gap-[8px]">
+        <div className="flex items-center gap-[12px] mb-[4px]">
+          <span className="text-[11px] font-medium text-slate uppercase tracking-wider">Control Center</span>
+          <div className="flex items-center gap-[6px] px-[10px] py-[2px] bg-ink-black text-white rounded-full">
+            <ShieldCheck size={12} className="text-white" />
+            <span className="text-[9px] font-medium uppercase tracking-tight">Verified Session</span>
+          </div>
         </div>
-        <h1 className="text-3xl font-extrabold text-white tracking-tight">Settings</h1>
+        <h1 className="text-3xl font-semibold text-ink-black tracking-tight">Settings</h1>
+        <p className="text-[13px] text-slate max-w-md leading-relaxed">
+          Configure your workspace, notifications, and security protocols.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-[20px] max-w-4xl">
         {sections.map((section) => (
-          <div key={section.title} className="bg-[#121215] border border-white/5 rounded-[2.5rem] p-8 flex flex-col gap-6 group hover:border-white/10 transition-all">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/5 rounded-xl">
-                 <section.icon className={`w-5 h-5 ${section.color}`} />
-               </div>
-               <h3 className="text-lg font-bold text-white">{section.title}</h3>
+          <div key={section.title} className="bg-white border border-ink-black/5 rounded-2xl p-[24px] flex flex-col gap-[24px] group hover:shadow-sm transition-all duration-300">
+            <div className="flex items-center gap-[12px]">
+              <div className="w-[40px] h-[40px] bg-canvas rounded-xl flex items-center justify-center border border-ink-black/5 group-hover:scale-105 transition-all">
+                <section.icon size={20} className="text-slate" />
+              </div>
+              <h3 className="text-[16px] font-semibold text-ink-black tracking-tight">{section.title}</h3>
             </div>
 
-            <div className="flex flex-col gap-1">
-               {section.items.map((item) => (
-                 <div key={item.label} className="flex items-center justify-between py-4 border-b border-white/[0.03] last:border-0 group/item">
-                   <span className="text-sm text-zinc-400 group-hover/item:text-zinc-200 transition-colors font-medium">
-                     {item.label}
-                   </span>
-                   
-                   {item.type === "switch" ? (
-                     <Switch defaultChecked={item.defaultChecked} className="data-[state=checked]:bg-primary" />
-                   ) : (
-                     <div className="flex items-center gap-2 cursor-pointer group/val">
-                        <span className="text-xs text-zinc-600 group-hover/val:text-zinc-400 transition-colors font-bold uppercase tracking-widest">
-                          {item.value}
-                        </span>
-                        <ChevronRight className="w-4 h-4 text-zinc-800" />
-                     </div>
-                   )}
-                 </div>
-               ))}
+            <div className="flex flex-col">
+              {section.items.map((item) => (
+                <div key={item.label} className="flex items-center justify-between py-[14px] border-b border-ink-black/[0.03] last:border-0 group/item">
+                  <span className="text-[13px] text-slate group-hover/item:text-ink-black transition-colors font-medium">
+                    {item.label}
+                  </span>
+
+                  {item.type === "switch" ? (
+                    <Switch defaultChecked={item.defaultChecked} className="data-[state=checked]:bg-ink-black" />
+                  ) : (
+                    <div className="flex items-center gap-[6px] cursor-pointer group/val px-[12px] py-[6px] bg-canvas rounded-lg border border-ink-black/5 hover:border-ink-black/10 transition-all">
+                      <span className="text-[10px] text-slate group-hover/val:text-ink-black transition-colors font-medium uppercase tracking-tight">
+                        {item.value}
+                      </span>
+                      <ChevronRight size={14} className="text-slate" />
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         ))}
 
-        <div className="bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20 rounded-[2.5rem] p-8 flex flex-col gap-6 relative overflow-hidden group col-span-1 md:col-span-2">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-3xl opacity-50 group-hover:opacity-100 transition-all" />
-            
-            <div className="flex flex-col gap-2 relative z-10">
-                <h3 className="text-xl font-bold text-white tracking-tight">Security & Privacy</h3>
-                <p className="text-xs text-zinc-500 max-w-md font-medium leading-relaxed">
-                  Manage your account security, two-factor authentication, and privacy settings to ensure your data is always safe.
-                </p>
-            </div>
+        {/* Security Banner */}
+        <div className="bg-ink-black text-white rounded-2xl p-[32px] flex flex-col md:flex-row items-center justify-between gap-[24px] relative overflow-hidden group col-span-1 md:col-span-2 shadow-sm">
+          <div className="absolute top-0 right-0 w-[288px] h-[288px] spectrum-glow opacity-20 pointer-events-none -mr-[64px] -mt-[64px] group-hover:opacity-30 transition-all duration-700" />
 
-            <button className="w-fit px-8 py-3.5 bg-primary text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 transition-all transform active:scale-95 relative z-10 group-hover:scale-105">
-                Manage Security
-            </button>
+          <div className="flex flex-col gap-[8px] relative z-10">
+            <h3 className="text-xl font-semibold text-white tracking-tight">Security & Encryption</h3>
+            <p className="text-[12px] text-white/60 max-w-md leading-relaxed">
+              Manage encryption keys, authentication methods, and session history.
+            </p>
+          </div>
+
+          <button className="px-[24px] py-[12px] bg-white text-ink-black rounded-xl font-medium text-[13px] transition-all transform active:scale-95 shadow-sm relative z-10 whitespace-nowrap">
+            Manage Infrastructure
+          </button>
         </div>
       </div>
     </div>

@@ -7,7 +7,7 @@ export default function Navbar() {
         <div className="flex justify-between h-16 items-center">
           <div className="flex-shrink-0 flex items-center">
             <Link href="/" className="text-2xl font-bold font-heading tracking-tighter text-white">
-              MANY<span className="text-primary">CHAT</span>
+              INBOX<span className="text-primary">LY</span>
             </Link>
           </div>
           <div className="hidden md:block">

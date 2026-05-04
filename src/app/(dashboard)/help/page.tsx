@@ -1,72 +1,66 @@
 import React from "react";
-import { HelpCircle, BookOpen, MessageCircle, FileText, ExternalLink, Search, ChevronRight } from "lucide-react";
+import { HelpCircle, BookOpen, MessageCircle, FileText, ExternalLink, Search, ChevronRight, Sparkles } from "lucide-react";
 
 export default function HelpPage() {
   const categories = [
     {
-      title: "Getting Started",
-      icon: BookOpen,
-      color: "text-primary",
+      title: "Getting Started", icon: BookOpen,
       links: ["Setting up your first automation", "Connecting Instagram", "Understanding Triggers", "Keywords Guide"]
     },
     {
-      title: "Integrations",
-      icon: ExternalLink,
-      color: "text-indigo-500",
+      title: "Integrations", icon: ExternalLink,
       links: ["Meta Developer Setup", "OpenAI API integration", "Stripe Checkout guide", "Webhook verification"]
     },
     {
-      title: "Automation Builder",
-      icon: FileText,
-      color: "text-amber-500",
+      title: "Automation Builder", icon: FileText,
       links: ["Smart AI Prompts", "Comment reply logic", "Keyword matching rules", "Flow builder tips"]
     }
   ];
 
   return (
-    <div className="flex flex-col gap-12">
-      {/* Header Section */}
-      <div className="flex flex-col gap-6 items-center text-center max-w-2xl mx-auto">
-        <div className="flex flex-col gap-2 items-center">
-            <div className="p-4 bg-primary/10 rounded-[2rem] border border-primary/20 mb-2">
-                <HelpCircle className="w-8 h-8 text-primary shadow-[0_0_20px_rgba(61,90,254,0.3)]" />
+    <div className="flex flex-col gap-[32px] pb-[64px]">
+      {/* ─── Header ─── */}
+      <div className="flex flex-col gap-[24px] items-center text-center max-w-2xl mx-auto">
+        <div className="flex flex-col gap-[12px] items-center">
+            <div className="w-[64px] h-[64px] bg-canvas rounded-2xl border border-ink-black/5 flex items-center justify-center shadow-sm">
+                <HelpCircle size={32} className="text-slate" />
             </div>
-            <h1 className="text-4xl font-extrabold text-white tracking-tight">How can we help?</h1>
-            <p className="text-sm text-zinc-500 font-medium">
-                Search our knowledge base or browse categories below to find what you need.
+            <h1 className="text-[32px] font-semibold text-ink-black tracking-tight">Intelligence Support</h1>
+            <p className="text-[14px] font-medium text-slate max-w-md leading-relaxed">
+                Search our knowledge base or browse documentation to optimize your engine.
             </p>
         </div>
 
-        <div className="w-full relative group">
-            <div className="absolute left-5 top-1/2 -translate-y-1/2 pointer-events-none">
-                <Search className="w-5 h-5 text-zinc-600 group-focus-within:text-primary transition-colors" />
+        <div className="w-full relative group max-w-lg">
+            <div className="absolute left-[16px] top-1/2 -translate-y-1/2 pointer-events-none">
+                <Search size={18} className="text-slate group-focus-within:text-ink-black transition-colors" />
             </div>
             <input 
                 type="text" 
-                placeholder="Search for articles, guides, or troubleshooting..." 
-                className="w-full bg-[#121215] border border-white/5 rounded-[1.5rem] py-4 pl-14 pr-6 text-sm text-white focus:outline-none focus:border-primary/30 focus:bg-white/5 transition-all placeholder:text-zinc-700"
+                placeholder="Search for articles, guides..." 
+                className="w-full bg-white border border-ink-black/5 rounded-2xl py-[12px] pl-[44px] pr-[24px] text-[14px] text-ink-black focus:outline-none focus:border-ink-black/10 focus:ring-4 focus:ring-ink-black/5 transition-all placeholder:text-slate shadow-sm"
             />
         </div>
       </div>
 
-      {/* Categories Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {/* ─── Categories ─── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[24px]">
         {categories.map((cat) => (
-            <div key={cat.title} className="bg-[#121215] border border-white/5 rounded-[2.5rem] p-8 flex flex-col gap-6 group hover:border-white/10 transition-all">
-                <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-white/5 rounded-2xl group-hover:bg-primary/5 transition-all">
-                        <cat.icon className={`w-5 h-5 ${cat.color}`} />
+            <div key={cat.title} className="bg-white border border-ink-black/5 rounded-2xl p-[24px] flex flex-col gap-[24px] group hover:border-ink-black/10 transition-all duration-300 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.05)]">
+                <div className="flex items-center gap-[12px]">
+                    <div className="w-[48px] h-[48px] bg-canvas rounded-2xl flex items-center justify-center border border-ink-black/5 group-hover:scale-105 transition-all">
+                        <cat.icon size={24} className="text-slate group-hover:text-ink-black transition-colors" />
                     </div>
-                    <h3 className="text-lg font-bold text-white">{cat.title}</h3>
+                    <h3 className="text-[18px] font-semibold text-ink-black tracking-tight">{cat.title}</h3>
                 </div>
 
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col">
                     {cat.links.map((link) => (
-                        <div key={link} className="flex items-center justify-between py-3 group/link cursor-pointer border-b border-white/[0.02] last:border-0 hover:bg-white/[0.01] px-2 -mx-2 rounded-xl transition-all">
-                            <span className="text-xs text-zinc-500 group-hover/link:text-zinc-300 transition-colors font-medium">
+                        <div key={link} className="flex items-center justify-between py-[12px] group/link cursor-pointer border-b border-ink-black/[0.03] last:border-0 hover:bg-canvas/50 px-[8px] -mx-[8px] rounded-xl transition-all">
+                            <span className="text-[14px] text-slate group-hover/link:text-ink-black transition-colors font-medium">
                                 {link}
                             </span>
-                            <ChevronRight className="w-4 h-4 text-zinc-800 group-hover/link:text-primary transition-all transform group-hover/link:translate-x-1" />
+                            <ChevronRight size={16} className="text-slate group-hover/link:text-ink-black transition-all transform group-hover/link:translate-x-[4px]" />
                         </div>
                     ))}
                 </div>
@@ -74,19 +68,22 @@ export default function HelpPage() {
         ))}
       </div>
 
-      {/* Support Card */}
-      <div className="bg-gradient-to-r from-primary to-accent rounded-[3rem] p-12 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden shadow-2xl shadow-primary/20">
-         <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 blur-[100px] -mr-48 -mt-24" />
+      {/* ─── Support Banner ─── */}
+      <div className="bg-ink-black text-white rounded-2xl p-[32px] flex flex-col md:flex-row items-center justify-between gap-[24px] relative overflow-hidden shadow-sm group">
+         <div className="absolute top-0 right-0 w-72 h-72 spectrum-glow opacity-20 pointer-events-none -mr-28 -mt-28 group-hover:opacity-30 transition-all duration-700" />
          
-         <div className="flex flex-col gap-3 relative z-10 text-center md:text-left">
-            <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase">Still Need Help?</h2>
-            <p className="text-blue-100/70 text-sm font-bold max-w-md leading-relaxed">
-                Connect with our support team for personalized assistance. We&apos;re available 24/7 to help you succeed.
+         <div className="flex flex-col gap-[8px] relative z-10 text-center md:text-left">
+            <div className="flex items-center justify-center md:justify-start gap-[8px] mb-[4px]">
+                <Sparkles size={20} className="text-white" />
+                <h2 className="text-[20px] font-semibold text-white tracking-tight">Still Need Help?</h2>
+            </div>
+            <p className="text-white/60 font-medium text-[13px] max-w-md leading-relaxed">
+                Connect with our support team for personalized assistance. Available 24/7.
             </p>
          </div>
 
-         <button className="px-10 py-5 bg-white text-primary rounded-[2rem] text-sm font-black uppercase tracking-widest shadow-2xl shadow-black/10 hover:scale-105 active:scale-95 transition-all relative z-10 flex items-center gap-2">
-            <MessageCircle className="w-5 h-5 fill-primary" />
+         <button className="px-[24px] py-[12px] bg-white text-ink-black rounded-xl text-[13px] font-semibold transition-all transform active:scale-95 shadow-sm relative z-10 flex items-center gap-[8px] hover:bg-white/90">
+            <MessageCircle size={16} />
             <span>Chat with Support</span>
          </button>
       </div>

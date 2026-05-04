@@ -20,50 +20,50 @@ import {
   AlertCircle,
   Loader2,
   TestTube,
+  Monitor,
+  MousePointerClick,
+  TrendingUp,
+  Brain,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { addTrigger, createKeyword, deleteKeyword } from "@/actions/triggers";
 import { updateListener } from "@/actions/listeners";
 import { updateAutomation } from "@/actions/automations";
 import Link from "next/link";
+import PostSelector from "./PostSelector";
 
 const TRIGGER_OPTIONS = [
   {
     value: "MESSAGE",
-    label: "DM Received",
-    desc: "Fires when someone sends a direct message",
+    label: "Direct Message",
+    desc: "When someone engages with your inbox",
     icon: MessageSquare,
-    color: "from-blue-500 to-cyan-500",
-    bg: "bg-blue-500/10",
-    border: "border-blue-500/30",
   },
   {
     value: "COMMENT",
     label: "Post Comment",
-    desc: "Fires when someone comments on a post",
+    desc: "When people engage with your content",
     icon: Hash,
-    color: "from-purple-500 to-pink-500",
-    bg: "bg-purple-500/10",
-    border: "border-purple-500/30",
   },
   {
     value: "STORY_MENTION",
     label: "Story Mention",
-    desc: "Fires when you're mentioned in a story",
+    desc: "When fans tag you in their stories",
     icon: Zap,
-    color: "from-amber-500 to-orange-500",
-    bg: "bg-amber-500/10",
-    border: "border-amber-500/30",
   },
   {
     value: "NEW_FOLLOWER",
     label: "New Follower",
-    desc: "Fires when someone follows your account",
+    desc: "Welcome every new fan automatically",
     icon: Bot,
-    color: "from-green-500 to-emerald-500",
-    bg: "bg-green-500/10",
-    border: "border-green-500/30",
   },
+];
+
+const PERSONAS = [
+  { id: "CUSTOM", label: "Custom Persona", desc: "Build your own prompt from scratch", icon: Edit3 },
+  { id: "CASUAL", label: "Casual Friend", desc: "Friendly, casual, uses emojis & slang", icon: MessageSquare },
+  { id: "PROFESSIONAL", label: "Pro Expert", desc: "Always formal, precise, and helpful", icon: Monitor },
+  { id: "SALES", label: "Sales Agent", desc: "Conversion focused, persuasive tone", icon: TrendingUp },
+  { id: "SUPPORT", label: "Help Desk", desc: "Concise problem solver, technical", icon: AlertCircle },
 ];
 
 export default function AutomationBuilder({
@@ -79,8 +79,10 @@ export default function AutomationBuilder({
       listener: "SMARTAI" | "MESSAGE";
       prompt?: string | null;
       commentReply?: string | null;
+      persona?: any;
     } | null;
     trigger: { id: string; type: string }[];
+    posts: any[];
   };
 }) {
   const [name, setName] = useState(automation.name);
@@ -98,21 +100,34 @@ export default function AutomationBuilder({
     automation.listener?.commentReply || ""
   );
   const [aiPrompt, setAiPrompt] = useState(automation.listener?.prompt || "");
+  const [persona, setPersona] = useState<any>(
+    (automation.listener as any)?.persona || "CUSTOM"
+  );
   const [active, setActive] = useState(automation.active);
+  const [isSemantic, setIsSemantic] = useState(automation.isSemantic || false);
   const [isSaving, setIsSaving] = useState(false);
   const [testMessage, setTestMessage] = useState("");
   const [testResult, setTestResult] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
   const router = useRouter();
 
-  // Save name on blur
   const handleNameBlur = useCallback(async () => {
     if (name !== automation.name) {
       await updateAutomation(automation.id, { name });
     }
   }, [name, automation.name, automation.id]);
 
-  // Add keyword
+  const handleToggleSemantic = async () => {
+    const newVal = !isSemantic;
+    setIsSemantic(newVal);
+    const res = await updateAutomation(automation.id, { isSemantic: newVal });
+    if (res.status === 200) {
+        toast.success(newVal ? "Semantic AI Activated" : "Keyword Mode Only");
+    } else {
+        setIsSemantic(!newVal);
+    }
+  };
+
   const handleAddKeyword = async () => {
     if (!newKeyword.trim()) return;
     if (keywords.length >= 5) {
@@ -130,7 +145,6 @@ export default function AutomationBuilder({
     }
   };
 
-  // Remove keyword
   const handleRemoveKeyword = async (keywordId: string) => {
     const res = await deleteKeyword(keywordId);
     if (res.status === 200) {
@@ -140,33 +154,24 @@ export default function AutomationBuilder({
     }
   };
 
-  // Save all — triggers + listener + name in one go
   const handleSaveAll = async () => {
     setIsSaving(true);
     try {
-      // Save name
       if (name !== automation.name) {
         await updateAutomation(automation.id, { name });
       }
-
-      // Save triggers
       await addTrigger(automation.id, selectedTriggers);
-
-      // Save listener
-      await updateListener(automation.id, listenerType, aiPrompt, replyMessage);
-
-      toast.success("Automation saved successfully!");
+      await updateListener(automation.id, listenerType, aiPrompt, replyMessage, persona);
+      toast.success("Flow saved successfully!");
       router.refresh();
     } catch {
-      toast.error("Failed to save automation");
+      toast.error("Failed to save flow");
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Toggle active
   const handleToggleActive = async () => {
-    // Validate before activating
     if (!active) {
       if (selectedTriggers.length === 0) {
         toast.error("Add at least one trigger before activating");
@@ -176,8 +181,8 @@ export default function AutomationBuilder({
         toast.error("Set a reply message before activating");
         return;
       }
-      if (keywords.length === 0) {
-        toast.error("Add at least one keyword before activating");
+      if (keywords.length === 0 && !isSemantic) {
+        toast.error("Add keywords or enable Semantic AI before activating");
         return;
       }
     }
@@ -186,14 +191,13 @@ export default function AutomationBuilder({
     setActive(newActive);
     const res = await updateAutomation(automation.id, { active: newActive });
     if (res.status === 200) {
-      toast.success(newActive ? "Automation activated!" : "Automation paused");
+      toast.success(newActive ? "Engine Started!" : "Engine Paused");
     } else {
       setActive(!newActive);
       toast.error("Failed to update status");
     }
   };
 
-  // Test automation
   const handleTest = async () => {
     if (!testMessage.trim()) {
       toast.error("Enter a test message first");
@@ -212,410 +216,393 @@ export default function AutomationBuilder({
 
       if (data.result?.triggered) {
         setTestResult(
-          `✅ Automation triggered!\nResponse: "${data.result.response}"`
+          `✅ SUCCESS: Automation triggered!\nResponse Sent: "${data.result.response}"`
         );
       } else {
         setTestResult(
-          `❌ Not triggered: ${data.result?.error || "No matching automation found"}`
+          `❌ FAILED: ${data.result?.error || "No matching automation found"}`
         );
       }
     } catch {
-      setTestResult("❌ Test failed — check server logs");
+      setTestResult("❌ FATAL: Test failed — check server logs");
     } finally {
       setIsTesting(false);
     }
   };
 
+  // Progressive Disclosure Logic
+  const step1Done = selectedTriggers.length > 0;
+  const step2Done = step1Done && (keywords.length > 0 || isSemantic);
+  const step3Done = step1Done && (listenerType === "MESSAGE" ? replyMessage.trim().length > 0 : aiPrompt.trim().length > 0);
+
   return (
-    <div className="flex flex-col h-full gap-6 max-w-4xl mx-auto w-full">
-      {/* ─── Top Bar ─── */}
-      <div className="flex items-center justify-between py-2">
-        <div className="flex items-center gap-4">
+    <div className="flex flex-col h-full gap-10 max-w-7xl mx-auto w-full pb-20 px-4 sm:px-8">
+      {/* ─── Top Navigation Bar ─── */}
+      <div className="flex items-center justify-between py-[24px] sticky top-0 bg-canvas/90 backdrop-blur-xl z-50 px-[24px] border-b border-ink-black/5 -mx-[16px] sm:-mx-[32px]">
+        <div className="flex items-center gap-[24px]">
           <Link
             href="/automations"
-            className="p-2.5 bg-white/[0.03] hover:bg-white/[0.08] rounded-xl border border-white/5 transition-all"
+            className="group flex items-center justify-center w-[40px] h-[40px] bg-white hover:bg-canvas rounded-xl border border-ink-black/5 transition-all active:scale-95 shadow-sm"
           >
-            <ArrowLeft className="w-4 h-4 text-zinc-400" />
+            <ArrowLeft size={18} className="text-slate group-hover:text-ink-black transition-colors" />
           </Link>
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={handleNameBlur}
-              className="text-xl font-bold text-white bg-transparent border-none focus:outline-none w-64 px-0"
-              placeholder="Untitled Automation"
-            />
-            <Edit3 className="w-3.5 h-3.5 text-zinc-600" />
+          <div className="flex flex-col gap-[4px]">
+            <div className="flex items-center gap-[8px] group/title">
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={handleNameBlur}
+                className="text-2xl font-semibold text-ink-black bg-transparent border-none focus:outline-none w-fit min-w-[200px] px-0 tracking-tight placeholder:text-slate/40"
+                placeholder="Name Your Flow..."
+              />
+              <Edit3 size={16} className="text-slate opacity-0 group-hover/title:opacity-100 transition-opacity" />
+            </div>
+            <div className="flex items-center gap-[8px]">
+                <div className={`w-[6px] h-[6px] rounded-full ${active ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)] animate-pulse" : "bg-slate/40"}`} />
+                <span className="text-[11px] font-medium uppercase tracking-wider text-slate leading-none">
+                    {active ? "Live Engine Active" : "Draft Status"}
+                </span>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Status indicator */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/5">
-            <div
-              className={`w-1.5 h-1.5 rounded-full ${
-                active
-                  ? "bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.6)]"
-                  : "bg-zinc-600"
-              }`}
-            />
-            <span className="text-[11px] font-semibold text-zinc-400">
-              {active ? "Active" : "Inactive"}
-            </span>
+        <div className="flex items-center gap-[16px]">
+          <div className="flex bg-white p-[4px] rounded-xl border border-ink-black/5 shadow-sm">
+             <button 
+                onClick={handleToggleActive}
+                className={`flex items-center gap-[6px] px-[16px] py-[8px] rounded-lg text-[11px] font-medium uppercase tracking-wider transition-all ${
+                    active 
+                    ? "bg-ink-black text-white shadow-sm" 
+                    : "text-slate hover:text-ink-black hover:bg-canvas"
+                }`}
+             >
+                <Power size={14} />
+                {active ? "Live" : "Paused"}
+             </button>
+             <button 
+                className={`flex items-center gap-[6px] px-[16px] py-[8px] rounded-lg text-[11px] font-medium uppercase tracking-wider transition-all text-slate hover:text-ink-black hover:bg-canvas`}
+             >
+                Development
+             </button>
           </div>
 
-          {/* Toggle Active */}
-          <button
-            onClick={handleToggleActive}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              active
-                ? "bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20"
-                : "bg-white/[0.03] text-zinc-400 border border-white/5 hover:bg-white/[0.08]"
-            }`}
-          >
-            <Power className="w-3.5 h-3.5" />
-            {active ? "On" : "Off"}
-          </button>
-
-          {/* Save All */}
           <button
             onClick={handleSaveAll}
             disabled={isSaving}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:opacity-90 transition-all shadow-lg shadow-violet-600/20 disabled:opacity-50"
+            className="flex items-center gap-[8px] px-[24px] py-[12px] bg-white text-ink-black border border-ink-black/5 hover:border-ink-black/10 hover:shadow-md rounded-xl font-semibold text-[13px] transition-all disabled:opacity-50 active:scale-95 shadow-sm"
           >
-            {isSaving ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Save className="w-3.5 h-3.5" />
-            )}
-            {isSaving ? "Saving..." : "Save All"}
+            {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+            Save Flow
           </button>
         </div>
       </div>
 
-      {/* ─── Builder Workspace ─── */}
-      <div className="flex-grow overflow-y-auto pb-12">
-        <div className="flex flex-col items-center gap-0">
-          
-          {/* ═══════════════════════════════════════ */}
-          {/*  STEP 1: WHEN (Triggers)               */}
-          {/* ═══════════════════════════════════════ */}
-          <div className="w-full relative">
-            <div className="absolute -left-0 top-8 flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-white text-xs font-black shadow-lg shadow-violet-600/30">
-                1
-              </div>
-            </div>
+      {/* ─── Builder Canvas ─── */}
+      <div className="flex flex-col gap-0 max-w-4xl mx-auto w-full relative pt-[40px]">
+        <div className="absolute left-[15px] top-[80px] bottom-[80px] w-[2px] bg-ink-black/5 hidden sm:block" />
 
-            <div className="ml-12 bg-[#0e0e11] border border-white/[0.06] rounded-2xl overflow-hidden">
-              <div className="px-6 py-5 border-b border-white/[0.04]">
-                <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-violet-400" />
-                  <h3 className="text-sm font-bold text-white">When this happens...</h3>
-                </div>
-                <p className="text-xs text-zinc-500 mt-1 ml-6">Select trigger events for this automation</p>
+        {/* ═══════════════════════════════════════ */}
+        {/*  STEP 1: TRIGGER SECTION                */}
+        {/* ═══════════════════════════════════════ */}
+        <div className="flex gap-[32px] items-start relative mb-[48px]">
+           <div className={`w-[32px] h-[32px] rounded-full flex items-center justify-center font-bold text-[12px] z-10 shrink-0 transition-all duration-500 bg-white hidden sm:flex ${step1Done ? "border-2 border-ink-black text-ink-black shadow-sm" : "border border-ink-black/20 text-slate"}`}>
+              1
+           </div>
+           
+           <div className={`flex-grow bg-white border transition-all duration-500 rounded-2xl overflow-hidden relative ${step1Done ? "border-ink-black/10 shadow-md" : "border-ink-black/5 shadow-sm"}`}>
+              <div className="px-[32px] py-[24px] border-b border-ink-black/5 flex items-center justify-between bg-white">
+                 <div className="flex items-center gap-[16px]">
+                    <div className={`w-[40px] h-[40px] rounded-xl flex items-center justify-center transition-colors ${step1Done ? "bg-ink-black text-white shadow-sm" : "bg-canvas border border-ink-black/5 text-slate"}`}>
+                        <Monitor size={20} />
+                    </div>
+                    <div>
+                        <h3 className="text-[16px] font-semibold text-ink-black tracking-tight">Trigger Event</h3>
+                        <p className="text-[11px] font-medium text-slate uppercase tracking-wider mt-[4px]">When should this flow run?</p>
+                    </div>
+                 </div>
               </div>
 
-              <div className="p-6 grid grid-cols-2 gap-3">
-                {TRIGGER_OPTIONS.map((option) => {
-                  const isSelected = selectedTriggers.includes(option.value);
-                  const Icon = option.icon;
-                  return (
-                    <button
-                      key={option.value}
-                      onClick={() => {
-                        if (isSelected) {
-                          setSelectedTriggers(selectedTriggers.filter((t) => t !== option.value));
-                        } else {
-                          setSelectedTriggers([...selectedTriggers, option.value]);
-                        }
-                      }}
-                      className={`relative p-4 rounded-xl border text-left transition-all group ${
-                        isSelected
-                          ? `${option.bg} ${option.border}`
-                          : "bg-white/[0.02] border-white/[0.04] hover:border-white/[0.08] hover:bg-white/[0.04]"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-3">
-                          <div className={`p-2 rounded-lg ${isSelected ? option.bg : "bg-white/5"}`}>
-                            <Icon className={`w-4 h-4 ${isSelected ? "text-white" : "text-zinc-500"}`} />
+              <div className="p-[32px] grid grid-cols-1 sm:grid-cols-2 gap-[16px]">
+                 {TRIGGER_OPTIONS.map((option) => {
+                   const isSelected = selectedTriggers.includes(option.value);
+                   const Icon = option.icon;
+                   return (
+                     <button
+                       key={option.value}
+                       onClick={() => {
+                         if (isSelected) {
+                           setSelectedTriggers(selectedTriggers.filter((t) => t !== option.value));
+                         } else {
+                           setSelectedTriggers([...selectedTriggers, option.value]);
+                         }
+                       }}
+                       className={`group relative p-[24px] rounded-2xl border text-left transition-all duration-300 ${
+                         isSelected
+                           ? `bg-white border-ink-black/20 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] ring-1 ring-ink-black/5`
+                           : "bg-white border-ink-black/5 hover:border-ink-black/10 hover:shadow-sm"
+                       }`}
+                     >
+                       <div className="flex flex-col gap-[16px]">
+                          <div className={`w-[40px] h-[40px] rounded-xl flex items-center justify-center transition-all ${
+                            isSelected ? "bg-ink-black text-white shadow-sm scale-105" : "bg-canvas border border-ink-black/5 text-slate group-hover:scale-105"
+                          }`}>
+                            <Icon size={20} />
                           </div>
+                          
                           <div>
-                            <p className={`text-sm font-semibold ${isSelected ? "text-white" : "text-zinc-300"}`}>
-                              {option.label}
-                            </p>
-                            <p className="text-[11px] text-zinc-500 mt-0.5">{option.desc}</p>
+                             <p className={`text-[14px] font-semibold tracking-tight ${isSelected ? "text-ink-black" : "text-slate group-hover:text-ink-black transition-colors"}`}>
+                               {option.label}
+                             </p>
+                             <p className="text-[12px] text-slate/70 mt-[4px] leading-relaxed">{option.desc}</p>
                           </div>
-                        </div>
-                        <div
-                          className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
-                            isSelected
-                              ? "bg-gradient-to-br " + option.color + " border-transparent"
-                              : "border-white/10"
-                          }`}
-                        >
-                          {isSelected && <Check className="w-3 h-3 text-white" />}
-                        </div>
-                      </div>
+                          
+                          <div className={`absolute top-[24px] right-[24px] w-[20px] h-[20px] rounded-full border flex items-center justify-center transition-all ${
+                            isSelected ? "bg-ink-black border-ink-black scale-110" : "border-ink-black/10 bg-canvas"
+                          }`}>
+                             {isSelected && <Check size={12} className="text-white stroke-[3px]" />}
+                          </div>
+                       </div>
+                     </button>
+                   );
+                 })}
+              </div>
+
+              {/* Post Selection UI */}
+              {selectedTriggers.includes("COMMENT") && (
+                <div className="px-[32px] pb-[32px] animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="pt-[24px] border-t border-ink-black/5">
+                        <PostSelector automationId={automation.id} initialPosts={automation.posts} />
+                    </div>
+                </div>
+              )}
+           </div>
+        </div>
+
+        {/* ═══════════════════════════════════════ */}
+        {/*  STEP 2: KEYWORDS SECTION              */}
+        {/* ═══════════════════════════════════════ */}
+        <div className={`gap-[32px] items-start relative mb-[48px] ${!step1Done ? "hidden" : "flex animate-in fade-in slide-in-from-bottom-8 duration-700"}`}>
+           <div className={`w-[32px] h-[32px] rounded-full flex items-center justify-center font-bold text-[12px] z-10 shrink-0 transition-all duration-500 bg-white hidden sm:flex ${!step1Done ? "border border-ink-black/10 text-slate/40" : step2Done ? "border-2 border-ink-black text-ink-black shadow-sm" : "border border-ink-black/20 text-slate"}`}>
+              2
+           </div>
+
+           <div className={`flex-grow bg-white border transition-all duration-500 rounded-2xl overflow-hidden relative ${step2Done ? "border-ink-black/10 shadow-md" : "border-ink-black/5 shadow-sm"}`}>
+              <div className="px-[32px] py-[24px] border-b border-ink-black/5 flex items-center justify-between bg-white">
+                 <div className="flex items-center gap-[16px]">
+                    <div className={`w-[40px] h-[40px] rounded-xl flex items-center justify-center transition-colors ${!step1Done ? "bg-canvas border border-ink-black/5 text-slate/50" : step2Done ? "bg-ink-black text-white shadow-sm" : "bg-canvas border border-ink-black/5 text-slate"}`}>
+                        <Hash size={20} />
+                    </div>
+                    <div>
+                        <h3 className="text-[16px] font-semibold text-ink-black tracking-tight">Content Filter</h3>
+                        <p className="text-[11px] font-medium text-slate uppercase tracking-wider mt-[4px]">Specify keywords or use Semantic AI</p>
+                    </div>
+                 </div>
+
+                 {/* Semantic Toggle */}
+                 <button 
+                    onClick={handleToggleSemantic}
+                    className={`flex items-center gap-[12px] px-[16px] py-[8px] rounded-lg border transition-all ${
+                        isSemantic 
+                        ? "bg-ink-black/5 border-ink-black/20 text-ink-black shadow-sm" 
+                        : "bg-white border-ink-black/5 text-slate hover:text-ink-black hover:border-ink-black/10"
+                    }`}
+                 >
+                    <Brain size={14} className={`${isSemantic ? "animate-pulse" : ""}`} />
+                    <span className="text-[11px] font-medium uppercase tracking-wider">Semantic Match</span>
+                    <div className={`w-[28px] h-[14px] rounded-full relative transition-all ${isSemantic ? "bg-ink-black" : "bg-slate/30"}`}>
+                        <div className={`absolute top-[2px] w-[10px] h-[10px] rounded-full bg-white transition-all shadow-sm ${isSemantic ? "right-[2px]" : "left-[2px]"}`} />
+                    </div>
+                 </button>
+              </div>
+
+              <div className="p-[32px] space-y-[24px]">
+                 <div className="relative group">
+                    <input
+                        type="text"
+                        value={newKeyword}
+                        onChange={(e) => setNewKeyword(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleAddKeyword()}
+                        placeholder="Type a keyword and press Enter..."
+                        className="w-full bg-canvas border border-ink-black/5 rounded-xl px-[24px] py-[16px] text-[14px] text-ink-black placeholder:text-slate/50 focus:outline-none focus:border-ink-black/20 focus:bg-white focus:shadow-[0_0_0_4px_rgba(0,0,0,0.02)] transition-all pr-[60px]"
+                    />
+                    <button
+                        onClick={handleAddKeyword}
+                        disabled={!newKeyword.trim()}
+                        className="absolute right-[8px] top-[8px] h-[36px] w-[36px] bg-white border border-ink-black/5 text-ink-black hover:bg-canvas rounded-lg flex items-center justify-center transition-all disabled:opacity-0 active:scale-95 shadow-sm"
+                    >
+                        <Plus size={16} />
                     </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+                 </div>
 
-          {/* Connector line */}
-          <div className="ml-12 flex items-center py-1">
-            <div className="w-px h-8 bg-gradient-to-b from-violet-600/40 to-indigo-600/40" />
-          </div>
-
-          {/* ═══════════════════════════════════════ */}
-          {/*  STEP 2: FILTER (Keywords)              */}
-          {/* ═══════════════════════════════════════ */}
-          <div className="w-full relative">
-            <div className="absolute -left-0 top-8 flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-cyan-600 flex items-center justify-center text-white text-xs font-black shadow-lg shadow-indigo-600/30">
-                2
-              </div>
-            </div>
-
-            <div className="ml-12 bg-[#0e0e11] border border-white/[0.06] rounded-2xl overflow-hidden">
-              <div className="px-6 py-5 border-b border-white/[0.04]">
-                <div className="flex items-center gap-2">
-                  <Hash className="w-4 h-4 text-cyan-400" />
-                  <h3 className="text-sm font-bold text-white">If message contains...</h3>
-                </div>
-                <p className="text-xs text-zinc-500 mt-1 ml-6">Only trigger when these keywords are found</p>
-              </div>
-
-              <div className="p-6 space-y-4">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newKeyword}
-                    onChange={(e) => setNewKeyword(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleAddKeyword()}
-                    placeholder="Type a keyword and press Enter..."
-                    className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500/40 transition-colors"
-                  />
-                  <button
-                    onClick={handleAddKeyword}
-                    disabled={!newKeyword.trim()}
-                    className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-cyan-600 text-white rounded-xl text-sm font-bold hover:opacity-90 transition-all disabled:opacity-30"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {keywords.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {keywords.map((keyword) => (
-                      <Badge
-                        key={keyword.id}
-                        className="rounded-lg px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold flex items-center gap-1.5 hover:bg-indigo-500/20 transition-colors"
-                      >
-                        <Hash className="w-3 h-3" />
-                        {keyword.word}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveKeyword(keyword.id);
-                          }}
-                          className="ml-0.5 hover:text-red-400 transition-colors"
+                 <div className="flex flex-wrap gap-[12px]">
+                    {keywords.length > 0 ? (
+                      keywords.map((keyword) => (
+                        <div
+                          key={keyword.id}
+                          className="px-[16px] py-[8px] rounded-lg bg-white border border-ink-black/5 text-ink-black text-[13px] font-medium flex items-center gap-[12px] hover:border-ink-black/10 hover:shadow-sm transition-all"
                         >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-zinc-600 text-xs py-2">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    <span>No keywords added — add at least one to filter messages</span>
-                  </div>
-                )}
-
-                {keywords.length >= 5 && (
-                  <p className="text-xs text-amber-400/70">
-                    Keyword limit reached. Upgrade to Pro for more.
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Connector line */}
-          <div className="ml-12 flex items-center py-1">
-            <div className="w-px h-8 bg-gradient-to-b from-indigo-600/40 to-emerald-600/40" />
-          </div>
-
-          {/* ═══════════════════════════════════════ */}
-          {/*  STEP 3: THEN (Action / Response)       */}
-          {/* ═══════════════════════════════════════ */}
-          <div className="w-full relative">
-            <div className="absolute -left-0 top-8 flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-600 to-green-600 flex items-center justify-center text-white text-xs font-black shadow-lg shadow-emerald-600/30">
-                3
-              </div>
-            </div>
-
-            <div className="ml-12 bg-[#0e0e11] border border-white/[0.06] rounded-2xl overflow-hidden">
-              <div className="px-6 py-5 border-b border-white/[0.04]">
-                <div className="flex items-center gap-2">
-                  <Send className="w-4 h-4 text-emerald-400" />
-                  <h3 className="text-sm font-bold text-white">Then respond with...</h3>
-                </div>
-                <p className="text-xs text-zinc-500 mt-1 ml-6">Choose how to automatically reply</p>
-              </div>
-
-              <div className="p-6 space-y-5">
-                {/* Response type toggle */}
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setListenerType("MESSAGE")}
-                    className={`flex-1 p-4 rounded-xl border transition-all ${
-                      listenerType === "MESSAGE"
-                        ? "bg-emerald-500/10 border-emerald-500/30"
-                        : "bg-white/[0.02] border-white/[0.04] hover:bg-white/[0.04]"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${listenerType === "MESSAGE" ? "bg-emerald-500/15" : "bg-white/5"}`}>
-                        <MessageSquare className={`w-4 h-4 ${listenerType === "MESSAGE" ? "text-emerald-400" : "text-zinc-500"}`} />
-                      </div>
-                      <div className="text-left">
-                        <p className={`text-sm font-semibold ${listenerType === "MESSAGE" ? "text-white" : "text-zinc-400"}`}>
-                          Static Reply
-                        </p>
-                        <p className="text-[11px] text-zinc-500">Send a fixed message every time</p>
-                      </div>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => setListenerType("SMARTAI")}
-                    className={`flex-1 p-4 rounded-xl border transition-all ${
-                      listenerType === "SMARTAI"
-                        ? "bg-violet-500/10 border-violet-500/30"
-                        : "bg-white/[0.02] border-white/[0.04] hover:bg-white/[0.04]"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${listenerType === "SMARTAI" ? "bg-violet-500/15" : "bg-white/5"}`}>
-                        <Sparkles className={`w-4 h-4 ${listenerType === "SMARTAI" ? "text-violet-400" : "text-zinc-500"}`} />
-                      </div>
-                      <div className="text-left">
-                        <p className={`text-sm font-semibold ${listenerType === "SMARTAI" ? "text-white" : "text-zinc-400"}`}>
-                          Smart AI
-                        </p>
-                        <p className="text-[11px] text-zinc-500">AI generates contextual replies</p>
-                      </div>
-                    </div>
-                  </button>
-                </div>
-
-                {/* Message / Prompt input */}
-                {listenerType === "MESSAGE" ? (
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                      Reply Message
-                    </label>
-                    <textarea
-                      value={replyMessage}
-                      onChange={(e) => setReplyMessage(e.target.value)}
-                      placeholder="Hi! Thanks for reaching out. We'll get back to you shortly..."
-                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/40 transition-colors min-h-[120px] resize-none"
-                    />
-                    <p className="text-[11px] text-zinc-600">This exact message will be sent as a reply.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                      AI Instructions
-                    </label>
-                    <textarea
-                      value={aiPrompt}
-                      onChange={(e) => setAiPrompt(e.target.value)}
-                      placeholder="You are a friendly assistant for a clothing brand. Help customers with product questions, sizing, shipping and returns. Be casual and helpful..."
-                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/40 transition-colors min-h-[150px] resize-none"
-                    />
-                    <p className="text-[11px] text-zinc-600">
-                      The AI uses this as context to generate personalized responses.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Connector line */}
-          <div className="ml-12 flex items-center py-1">
-            <div className="w-px h-8 bg-gradient-to-b from-emerald-600/40 to-amber-600/40" />
-          </div>
-
-          {/* ═══════════════════════════════════════ */}
-          {/*  STEP 4: TEST                           */}
-          {/* ═══════════════════════════════════════ */}
-          <div className="w-full relative">
-            <div className="absolute -left-0 top-8 flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-600 to-orange-600 flex items-center justify-center text-white text-xs font-black shadow-lg shadow-amber-600/30">
-                4
-              </div>
-            </div>
-
-            <div className="ml-12 bg-[#0e0e11] border border-white/[0.06] rounded-2xl overflow-hidden">
-              <div className="px-6 py-5 border-b border-white/[0.04]">
-                <div className="flex items-center gap-2">
-                  <TestTube className="w-4 h-4 text-amber-400" />
-                  <h3 className="text-sm font-bold text-white">Test your automation</h3>
-                </div>
-                <p className="text-xs text-zinc-500 mt-1 ml-6">Simulate a DM to see if your automation triggers correctly</p>
-              </div>
-
-              <div className="p-6 space-y-4">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={testMessage}
-                    onChange={(e) => setTestMessage(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleTest()}
-                    placeholder="Type a simulated DM message..."
-                    className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/40 transition-colors"
-                  />
-                  <button
-                    onClick={handleTest}
-                    disabled={isTesting || !testMessage.trim()}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl text-sm font-bold hover:opacity-90 transition-all disabled:opacity-30"
-                  >
-                    {isTesting ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className="text-slate font-bold">#</span>
+                          {keyword.word}
+                          <button onClick={() => handleRemoveKeyword(keyword.id)} className="p-[4px] text-slate hover:text-red-500 transition-colors ml-[4px]">
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))
                     ) : (
-                      <Send className="w-4 h-4" />
+                      <div className="flex items-center gap-[12px] text-slate bg-canvas border border-dashed border-ink-black/10 rounded-xl px-[24px] py-[20px] w-full justify-center">
+                        <AlertCircle size={16} className="opacity-50" />
+                        <span className="text-[12px] font-medium uppercase tracking-wider leading-none">
+                            {isSemantic ? "Semantic AI Active — No keywords needed" : "Universal Listener — Triggers on any message"}
+                        </span>
+                      </div>
                     )}
-                    Test
-                  </button>
-                </div>
-
-                {testResult && (
-                  <div
-                    className={`p-4 rounded-xl border text-sm font-mono whitespace-pre-wrap ${
-                      testResult.startsWith("✅")
-                        ? "bg-green-500/10 border-green-500/20 text-green-300"
-                        : "bg-red-500/10 border-red-500/20 text-red-300"
-                    }`}
-                  >
-                    {testResult}
-                  </div>
-                )}
-
-                <p className="text-[11px] text-zinc-600">
-                  💡 Tip: Make sure to save your automation first, then type a message containing one of your keywords.
-                </p>
+                 </div>
               </div>
-            </div>
-          </div>
+           </div>
+        </div>
+
+        {/* ═══════════════════════════════════════ */}
+        {/*  STEP 3: ACTION SECTION                */}
+        {/* ═══════════════════════════════════════ */}
+        <div className={`gap-[32px] items-start relative mb-[48px] ${!step2Done ? "hidden" : "flex animate-in fade-in slide-in-from-bottom-8 duration-700"}`}>
+           <div className={`w-[32px] h-[32px] rounded-full flex items-center justify-center font-bold text-[12px] z-10 shrink-0 transition-all duration-500 bg-white hidden sm:flex ${!step2Done ? "border border-ink-black/10 text-slate/40" : step3Done ? "border-2 border-ink-black text-ink-black shadow-sm" : "border border-ink-black/20 text-slate"}`}>
+              3
+           </div>
+
+           <div className={`flex-grow bg-white border transition-all duration-500 rounded-2xl overflow-hidden relative ${step3Done ? "border-ink-black/10 shadow-md" : "border-ink-black/5 shadow-sm"}`}>
+              <div className="px-[32px] py-[24px] border-b border-ink-black/5 flex items-center justify-between bg-white">
+                 <div className="flex items-center gap-[16px]">
+                    <div className={`w-[40px] h-[40px] rounded-xl flex items-center justify-center transition-colors ${!step2Done ? "bg-canvas border border-ink-black/5 text-slate/50" : step3Done ? "bg-ink-black text-white shadow-sm" : "bg-canvas border border-ink-black/5 text-slate"}`}>
+                        <MousePointerClick size={20} />
+                    </div>
+                    <div>
+                        <h3 className="text-[16px] font-semibold text-ink-black tracking-tight">Response Strategy</h3>
+                        <p className="text-[11px] font-medium text-slate uppercase tracking-wider mt-[4px]">Configure the automation payload</p>
+                    </div>
+                 </div>
+              </div>
+
+              <div className="p-[32px] space-y-[32px]">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-[16px]">
+                    <button
+                        onClick={() => setListenerType("MESSAGE")}
+                        className={`flex flex-col gap-[16px] p-[24px] rounded-2xl border transition-all text-left group ${
+                        listenerType === "MESSAGE"
+                            ? "bg-white border-ink-black/20 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] ring-1 ring-ink-black/5"
+                            : "bg-white border-ink-black/5 hover:border-ink-black/10 hover:shadow-sm"
+                        }`}
+                    >
+                        <div className={`w-[40px] h-[40px] rounded-xl flex items-center justify-center transition-all ${listenerType === "MESSAGE" ? "bg-ink-black text-white shadow-sm scale-105" : "bg-canvas border border-ink-black/5 text-slate group-hover:scale-105"}`}>
+                            <MessageSquare size={20} />
+                        </div>
+                        <div>
+                           <p className={`text-[14px] font-semibold tracking-tight ${listenerType === "MESSAGE" ? "text-ink-black" : "text-slate group-hover:text-ink-black transition-colors"}`}>Static Message</p>
+                           <p className="text-[12px] text-slate/70 mt-[4px] leading-relaxed">Send a fixed predetermined text</p>
+                        </div>
+                    </button>
+
+                    <button
+                        onClick={() => setListenerType("SMARTAI")}
+                        className={`flex flex-col gap-[16px] p-[24px] rounded-2xl border transition-all text-left group ${
+                        listenerType === "SMARTAI"
+                            ? "bg-white border-ink-black/20 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] ring-1 ring-ink-black/5"
+                            : "bg-white border-ink-black/5 hover:border-ink-black/10 hover:shadow-sm"
+                        }`}
+                    >
+                        <div className={`w-[40px] h-[40px] rounded-xl flex items-center justify-center transition-all ${listenerType === "SMARTAI" ? "bg-ink-black text-white shadow-sm scale-105" : "bg-canvas border border-ink-black/5 text-slate group-hover:scale-105"}`}>
+                            <Brain size={20} />
+                        </div>
+                        <div>
+                           <p className={`text-[14px] font-semibold tracking-tight ${listenerType === "SMARTAI" ? "text-ink-black" : "text-slate group-hover:text-ink-black transition-colors"}`}>AI Intelligence</p>
+                           <p className="text-[12px] text-slate/70 mt-[4px] leading-relaxed">Dynamically generate responses</p>
+                        </div>
+                    </button>
+                 </div>
+
+                 {listenerType === "SMARTAI" && (
+                    <div className="space-y-[16px] animate-in fade-in slide-in-from-top-4 duration-500">
+                        <label className="text-[11px] font-medium text-slate uppercase tracking-wider ml-[8px]"> AI Personality Profile </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[12px]">
+                            {PERSONAS.map((p) => (
+                                <button
+                                    key={p.id}
+                                    onClick={() => setPersona(p.id)}
+                                    className={`p-[16px] rounded-xl border text-left transition-all ${
+                                        persona === p.id 
+                                        ? "bg-white border-ink-black/20 shadow-sm ring-1 ring-ink-black/5" 
+                                        : "bg-canvas border-ink-black/5 hover:border-ink-black/10 hover:bg-white"
+                                    }`}
+                                >
+                                    <p className={`text-[12px] font-semibold tracking-tight ${persona === p.id ? "text-ink-black" : "text-slate"}`}>{p.label}</p>
+                                    <p className={`text-[11px] font-medium leading-relaxed mt-[4px] ${persona === p.id ? "text-slate/80" : "text-slate/60"}`}>{p.desc}</p>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                 )}
+
+                 <div className="space-y-[16px]">
+                    <label className="text-[11px] font-medium text-slate uppercase tracking-wider ml-[8px]"> Implementation Payload </label>
+                    <textarea
+                        value={listenerType === "MESSAGE" ? replyMessage : aiPrompt}
+                        onChange={(e) => listenerType === "MESSAGE" ? setReplyMessage(e.target.value) : setAiPrompt(e.target.value)}
+                        placeholder={listenerType === "MESSAGE" ? "Enter the exact message to send to the user..." : "Provide instructions or knowledge for the AI to use..."}
+                        className="w-full bg-canvas border border-ink-black/5 rounded-2xl p-[24px] text-[14px] text-ink-black focus:outline-none focus:border-ink-black/20 focus:bg-white focus:shadow-[0_0_0_4px_rgba(0,0,0,0.02)] min-h-[160px] resize-y placeholder:text-slate/50 transition-all"
+                    />
+                 </div>
+              </div>
+           </div>
+        </div>
+
+        {/* ═══════════════════════════════════════ */}
+        {/*  STEP 4: TEST SECTION                  */}
+        {/* ═══════════════════════════════════════ */}
+        <div className={`gap-[32px] items-start relative ${!step3Done ? "hidden" : "flex animate-in fade-in slide-in-from-bottom-8 duration-700"}`}>
+           <div className={`w-[32px] h-[32px] rounded-full flex items-center justify-center font-bold text-[12px] z-10 shrink-0 transition-all duration-500 bg-white hidden sm:flex ${!step3Done ? "border border-ink-black/10 text-slate/40" : "border-2 border-ink-black text-ink-black shadow-sm"}`}>
+              4
+           </div>
+
+           <div className="flex-grow bg-white border border-ink-black/5 rounded-2xl overflow-hidden shadow-sm relative mb-[80px]">
+              <div className="px-[32px] py-[24px] border-b border-ink-black/5 flex items-center justify-between bg-white">
+                 <div className="flex items-center gap-[16px]">
+                    <div className="w-[40px] h-[40px] bg-canvas border border-ink-black/5 rounded-xl text-slate flex items-center justify-center">
+                        <TestTube size={20} />
+                    </div>
+                    <div>
+                        <h3 className="text-[16px] font-semibold text-ink-black tracking-tight">Test Sandbox</h3>
+                        <p className="text-[11px] font-medium text-slate uppercase tracking-wider mt-[4px]">Verify flow logic</p>
+                    </div>
+                 </div>
+              </div>
+
+              <div className="p-[32px] space-y-[24px]">
+                 <div className="flex gap-[16px]">
+                    <input
+                        type="text"
+                        value={testMessage}
+                        onChange={(e) => setTestMessage(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleTest()}
+                        placeholder="Simulate an incoming message..."
+                        className="flex-1 bg-canvas border border-ink-black/5 rounded-xl px-[24px] py-[16px] text-[14px] text-ink-black focus:outline-none focus:border-ink-black/20 focus:bg-white focus:shadow-[0_0_0_4px_rgba(0,0,0,0.02)] transition-all placeholder:text-slate/50"
+                    />
+                    <button
+                        onClick={handleTest}
+                        disabled={isTesting || !testMessage.trim()}
+                        className="flex items-center gap-[12px] px-[32px] bg-white border border-ink-black/5 hover:border-ink-black/10 hover:shadow-md hover:bg-canvas text-ink-black rounded-xl text-[12px] font-semibold transition-all shadow-sm disabled:opacity-50"
+                    >
+                        {isTesting ? <Loader2 size={16} className="animate-spin" /> : "Run Test"}
+                    </button>
+                 </div>
+
+                 {testResult && (
+                   <div className="p-[24px] rounded-[1rem] bg-canvas border border-ink-black/10 font-mono text-sm">
+                      <div className={`text-[10px] font-black uppercase tracking-widest mb-[12px] ${testResult.startsWith("✅") ? "text-emerald-600" : "text-red-600"}`}>Result Output</div>
+                      <div className="text-ink-black leading-relaxed">{testResult}</div>
+                   </div>
+                 )}
+              </div>
+           </div>
         </div>
       </div>
     </div>

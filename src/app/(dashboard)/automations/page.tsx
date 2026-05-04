@@ -2,54 +2,29 @@
 
 import React from "react";
 import {
-  Zap,
-  MessageSquare,
-  Hash,
-  Sparkles,
-  Power,
-  ChevronRight,
-  Bot,
-  Clock,
-  Activity,
+  Zap, MessageSquare, Hash, Sparkles, ChevronRight, Bot, Clock, LayoutGrid, Filter, BarChart3,
 } from "lucide-react";
 import { getAutomations } from "@/actions/automations";
 import AutomationToggle from "@/components/automations/AutomationToggle";
 import CreateAutomationButton from "@/components/automations/CreateAutomationButton";
 import { useRouter } from "next/navigation";
-
-type AutomationKeyword = {
-  id: string;
-  word: string;
-};
-
-type AutomationListener = {
-  id: string;
-  listener: "SMARTAI" | "MESSAGE";
-  commentReply?: string | null;
-  dmCount: number;
-  commentCount: number;
-};
-
-type AutomationTrigger = {
-  id: string;
-  type: string;
-};
+import { format } from "date-fns";
 
 type Automation = {
   id: string;
   name: string;
   createdAt: string;
   active: boolean;
-  keywords: AutomationKeyword[];
-  listener: AutomationListener | null;
-  trigger: AutomationTrigger[];
+  keywords: { id: string; word: string }[];
+  listener: { id: string; listener: "SMARTAI" | "MESSAGE"; dmCount: number; commentCount: number; } | null;
+  trigger: { id: string; type: string }[];
 };
 
-const TRIGGER_ICONS: Record<string, { icon: React.ComponentType<{ className?: string }>; color: string }> = {
-  MESSAGE: { icon: MessageSquare, color: "text-blue-400" },
-  COMMENT: { icon: Hash, color: "text-purple-400" },
-  STORY_MENTION: { icon: Zap, color: "text-amber-400" },
-  NEW_FOLLOWER: { icon: Bot, color: "text-green-400" },
+const TRIGGER_ICONS: Record<string, { icon: React.ComponentType<{ className?: string }>; color: string, bg: string }> = {
+  MESSAGE: { icon: MessageSquare, color: "text-ink-black", bg: "bg-ink-black/5" },
+  COMMENT: { icon: Hash, color: "text-ink-black", bg: "bg-ink-black/5" },
+  STORY_MENTION: { icon: Zap, color: "text-ink-black", bg: "bg-ink-black/5" },
+  NEW_FOLLOWER: { icon: Bot, color: "text-ink-black", bg: "bg-ink-black/5" },
 };
 
 export default function AutomationsPage() {
@@ -68,183 +43,178 @@ export default function AutomationsPage() {
 
   const activeCount = automations.filter((a) => a.active).length;
   const totalResponses = automations.reduce(
-    (sum, a) => sum + (a.listener?.dmCount || 0) + (a.listener?.commentCount || 0),
-    0
+    (sum, a) => sum + (a.listener?.dmCount || 0) + (a.listener?.commentCount || 0), 0
   );
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-6 max-w-5xl mx-auto">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-violet-500/10 rounded-xl">
-            <Zap className="w-5 h-5 text-violet-400" />
-          </div>
-          <h1 className="text-2xl font-bold text-white">Automations</h1>
+      <div className="flex flex-col gap-8">
+        <div className="h-[64px] w-[192px] bg-white border border-ink-black/5 rounded-2xl animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-[20px]">
+            {[1,2,3].map(i => <div key={i} className="h-[112px] bg-white border border-ink-black/5 rounded-2xl animate-pulse" />)}
         </div>
-        <div className="flex items-center justify-center py-20">
-          <div className="flex items-center gap-3 text-zinc-500">
-            <div className="w-5 h-5 border-2 border-zinc-700 border-t-zinc-400 rounded-full animate-spin" />
-            <span className="text-sm">Loading automations...</span>
-          </div>
+        <div className="flex flex-col gap-[16px]">
+             {[1,2,3].map(i => <div key={i} className="h-[96px] bg-white border border-ink-black/5 rounded-2xl animate-pulse" />)}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex gap-8 max-w-5xl mx-auto">
-      {/* Main Content */}
-      <div className="flex-grow flex flex-col gap-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-violet-500/10 rounded-xl border border-violet-500/20">
-              <Zap className="w-5 h-5 text-violet-400" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white">Automations</h1>
-              <p className="text-xs text-zinc-500 mt-0.5">
-                {automations.length} automation{automations.length !== 1 ? "s" : ""} · {activeCount} active
-              </p>
+    <div className="flex flex-col gap-8">
+      {/* ─── Header ─── */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-[16px]">
+        <div className="flex flex-col gap-[12px]">
+          <div className="flex items-center gap-[12px]">
+            <span className="text-[12px] font-semibold text-slate uppercase tracking-widest">Flow Manager</span>
+            <div className="flex items-center gap-[6px] px-[12px] py-[4px] bg-ink-black text-white rounded-full">
+              <span className="text-[10px] font-semibold uppercase tracking-tight">System Active</span>
             </div>
           </div>
-          <CreateAutomationButton />
+          <h1 className="text-4xl font-bold text-ink-black tracking-tight">Automations</h1>
+          <p className="text-[14px] text-slate font-medium max-w-lg leading-relaxed">
+            Manage your automated workflows and AI interaction logic.
+          </p>
+        </div>
+        <CreateAutomationButton />
+      </div>
+
+      {/* ─── Stats ─── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-[16px]">
+        <div className="p-[24px] bg-white border border-ink-black/5 rounded-2xl flex items-center gap-[20px] group hover:border-ink-black/10 hover:shadow-sm transition-all">
+          <div className="w-[48px] h-[48px] rounded-2xl bg-canvas border border-ink-black/5 flex items-center justify-center shrink-0">
+            <LayoutGrid size={24} className="text-slate" />
+          </div>
+          <div className="flex flex-col gap-[4px]">
+            <span className="text-[11px] font-medium text-slate uppercase tracking-wider">Total Flows</span>
+            <span className="text-[28px] font-semibold text-ink-black tracking-tight leading-none">{automations.length}</span>
+          </div>
         </div>
 
-        {/* Stats bar */}
-        {automations.length > 0 && (
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-[#0e0e11] border border-white/[0.06] rounded-xl p-4 flex items-center gap-3">
-              <div className="p-2 bg-violet-500/10 rounded-lg">
-                <Zap className="w-4 h-4 text-violet-400" />
-              </div>
-              <div>
-                <p className="text-lg font-bold text-white">{automations.length}</p>
-                <p className="text-[11px] text-zinc-500 font-medium">Total</p>
-              </div>
-            </div>
-            <div className="bg-[#0e0e11] border border-white/[0.06] rounded-xl p-4 flex items-center gap-3">
-              <div className="p-2 bg-green-500/10 rounded-lg">
-                <Activity className="w-4 h-4 text-green-400" />
-              </div>
-              <div>
-                <p className="text-lg font-bold text-white">{activeCount}</p>
-                <p className="text-[11px] text-zinc-500 font-medium">Active</p>
-              </div>
-            </div>
-            <div className="bg-[#0e0e11] border border-white/[0.06] rounded-xl p-4 flex items-center gap-3">
-              <div className="p-2 bg-blue-500/10 rounded-lg">
-                <MessageSquare className="w-4 h-4 text-blue-400" />
-              </div>
-              <div>
-                <p className="text-lg font-bold text-white">{totalResponses}</p>
-                <p className="text-[11px] text-zinc-500 font-medium">Responses</p>
-              </div>
-            </div>
+        <div className="p-[24px] bg-white border border-ink-black/5 rounded-2xl flex items-center gap-[20px] group hover:border-ink-black/10 hover:shadow-sm transition-all relative overflow-hidden">
+          <div className="w-[48px] h-[48px] rounded-2xl bg-ink-black flex items-center justify-center relative z-10 shrink-0 shadow-sm">
+            <Zap size={24} className="text-white" />
           </div>
-        )}
+          <div className="flex flex-col gap-[4px] relative z-10">
+            <span className="text-[11px] font-medium text-slate uppercase tracking-wider">Active Engine</span>
+            <span className="text-[28px] font-semibold text-ink-black tracking-tight leading-none">{activeCount}</span>
+          </div>
+        </div>
 
-        {/* Automation List */}
+        <div className="p-[24px] bg-white border border-ink-black/5 rounded-2xl flex items-center gap-[20px] group hover:border-ink-black/10 hover:shadow-sm transition-all">
+          <div className="w-[48px] h-[48px] rounded-2xl bg-canvas border border-ink-black/5 flex items-center justify-center shrink-0">
+            <BarChart3 size={24} className="text-slate" />
+          </div>
+          <div className="flex flex-col gap-[4px]">
+            <span className="text-[11px] font-medium text-slate uppercase tracking-wider">Total Impact</span>
+            <span className="text-[28px] font-semibold text-ink-black tracking-tight leading-none">{totalResponses}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── List ─── */}
+      <div className="flex flex-col gap-[16px]">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-[12px]">
+            <Filter size={16} className="text-slate" />
+            <span className="text-[11px] font-medium text-slate uppercase tracking-wider">Sorted by Activity</span>
+          </div>
+          <span className="text-[11px] font-medium text-slate uppercase tracking-wider">{automations.length} total</span>
+        </div>
+
         {automations.length === 0 ? (
-          <div className="bg-[#0e0e11] border border-white/[0.06] rounded-2xl p-16 flex flex-col items-center justify-center text-center gap-5">
-            <div className="w-16 h-16 bg-violet-500/5 border border-violet-500/10 rounded-2xl flex items-center justify-center">
-              <Zap className="w-8 h-8 text-violet-500/40" />
+          <div className="bg-white border border-dashed border-ink-black/10 rounded-2xl p-[64px] flex flex-col items-center justify-center text-center gap-[24px]">
+            <div className="w-[64px] h-[64px] bg-canvas rounded-2xl flex items-center justify-center border border-ink-black/5 shadow-sm">
+              <Bot size={24} className="text-slate opacity-40" />
             </div>
-            <div>
-              <h3 className="text-lg font-bold text-white">No automations yet</h3>
-              <p className="text-zinc-500 text-sm mt-1 max-w-sm">
-                Create your first automation to start responding to Instagram DMs automatically.
+            <div className="flex flex-col gap-[8px]">
+              <h3 className="text-[18px] font-semibold text-ink-black tracking-tight">No autonomous flows detected</h3>
+              <p className="text-slate font-medium text-[14px] max-w-sm mx-auto leading-relaxed">
+                Initiate your first automated workflow to begin nurturing leads.
               </p>
             </div>
             <CreateAutomationButton />
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-[12px]">
             {automations.map((automation) => (
               <div
                 key={automation.id}
-                className="bg-[#0e0e11] border border-white/[0.06] rounded-2xl p-5 flex items-center justify-between group hover:border-white/[0.1] transition-all cursor-pointer"
                 onClick={() => router.push(`/automations/${automation.id}`)}
+                className="group relative flex flex-col md:flex-row items-center justify-between p-[24px] bg-white border border-ink-black/5 hover:border-ink-black/10 rounded-2xl transition-all duration-300 cursor-pointer overflow-hidden shadow-sm hover:shadow-md"
               >
-                <div className="flex items-center gap-4 flex-grow min-w-0">
-                  {/* Status dot */}
-                  <div className="flex-shrink-0">
-                    <div
-                      className={`w-2 h-2 rounded-full ${
-                        automation.active
-                          ? "bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)]"
-                          : "bg-zinc-700"
-                      }`}
-                    />
+                <div className="absolute -left-20 -top-20 w-64 h-64 spectrum-glow opacity-0 group-hover:opacity-5 transition-all duration-700 pointer-events-none" />
+
+                <div className="flex flex-col md:flex-row items-center gap-[20px] flex-grow relative z-10 w-full">
+                  {/* Status Indicator */}
+                  <div className="shrink-0">
+                    <div className={`w-[40px] h-[40px] rounded-xl border ${automation.active ? 'border-ink-black/10 bg-canvas shadow-sm' : 'border-ink-black/5 bg-white'} flex items-center justify-center transition-all`}>
+                      {automation.active ? <Zap size={18} className="text-ink-black animate-pulse" /> : <Bot size={18} className="text-slate/40" />}
+                    </div>
                   </div>
 
-                  {/* Info */}
-                  <div className="flex flex-col gap-2 min-w-0 flex-grow">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-sm font-bold text-white group-hover:text-violet-300 transition-colors truncate">
-                        {automation.name}
+                  {/* Content */}
+                  <div className="flex flex-col gap-[8px] w-full text-center md:text-left">
+                    <div className="flex flex-col md:flex-row items-center gap-[12px]">
+                      <h3 className="text-[15px] font-semibold text-ink-black tracking-tight group-hover:translate-x-0.5 transition-transform duration-300">
+                        {automation.name || "Untitled Flow"}
                       </h3>
                       {automation.listener?.listener === "SMARTAI" && (
-                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-500/10 border border-violet-500/20 text-[10px] font-semibold text-violet-300">
-                          <Sparkles className="w-3 h-3" />
-                          AI
-                        </span>
+                        <div className="px-[8px] py-[4px] rounded-md bg-ink-black/5 border border-ink-black/10 flex items-center gap-[6px]">
+                          <Sparkles size={12} className="text-ink-black" />
+                          <span className="text-[10px] font-medium uppercase tracking-wider text-ink-black">AI Engine</span>
+                        </div>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-3 text-[11px] text-zinc-500">
-                      {/* Triggers */}
-                      <div className="flex items-center gap-1.5">
-                        {automation.trigger.length > 0 ? (
-                          automation.trigger.map((t) => {
-                            const Icon = TRIGGER_ICONS[t.type]?.icon || Zap;
-                            const color = TRIGGER_ICONS[t.type]?.color || "text-zinc-500";
-                            return <Icon key={t.id} className={`w-3.5 h-3.5 ${color}`} />;
-                          })
-                        ) : (
-                          <span className="italic text-zinc-600">No triggers</span>
-                        )}
-                      </div>
-                      <span className="text-zinc-700">·</span>
-
-                      {/* Keywords */}
-                      <div className="flex items-center gap-1">
-                        {automation.keywords.length > 0 ? (
-                          <>
-                            {automation.keywords.slice(0, 3).map((kw) => (
-                              <span
-                                key={kw.id}
-                                className="px-1.5 py-0.5 rounded bg-white/[0.04] text-zinc-400 text-[10px] font-medium"
-                              >
-                                {kw.word}
-                              </span>
-                            ))}
-                            {automation.keywords.length > 3 && (
-                              <span className="text-zinc-600">+{automation.keywords.length - 3}</span>
-                            )}
-                          </>
-                        ) : (
-                          <span className="italic text-zinc-600">No keywords</span>
-                        )}
-                      </div>
-                      <span className="text-zinc-700">·</span>
-
-                      {/* Date */}
-                      <div className="flex items-center gap-1 text-zinc-600">
-                        <Clock className="w-3 h-3" />
-                        {new Date(automation.createdAt).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
+                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-[16px]">
+                      <div className="flex items-center -space-x-[8px]">
+                        {automation.trigger.map((t, idx) => {
+                          const Icon = TRIGGER_ICONS[t.type]?.icon || Zap;
+                          return (
+                            <div key={t.id} className="w-[32px] h-[32px] rounded-full bg-canvas border border-ink-black/5 flex items-center justify-center shadow-sm" style={{ zIndex: 10 - idx }}>
+                              <Icon size={14} className="text-slate" />
+                            </div>
+                          );
                         })}
+                      </div>
+
+                      <div className="w-[1px] h-[16px] bg-ink-black/10 hidden md:block" />
+
+                      <div className="flex items-center gap-[8px]">
+                        {automation.keywords.slice(0, 3).map((kw) => (
+                          <div key={kw.id} className="px-[10px] py-[4px] rounded-md bg-white border border-ink-black/5 shadow-sm text-[11px] font-medium text-ink-black">
+                            #{kw.word}
+                          </div>
+                        ))}
+                        {automation.keywords.length > 3 && (
+                          <span className="text-[11px] font-medium text-slate">+{automation.keywords.length - 3}</span>
+                        )}
+                      </div>
+
+                      <div className="w-[1px] h-[16px] bg-ink-black/10 hidden md:block" />
+
+                      <div className="flex items-center gap-[8px] text-slate text-[11px] font-medium uppercase tracking-wider">
+                        <Clock size={14} />
+                        {format(new Date(automation.createdAt), "MMM dd")}
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Right side */}
-                <div className="flex items-center gap-3 ml-4 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                  <AutomationToggle id={automation.id} active={automation.active} />
-                  <ChevronRight className="w-4 h-4 text-zinc-700 group-hover:text-zinc-400 transition-colors" />
+                {/* Performance Stats */}
+                <div className="flex items-center gap-[20px] mt-[20px] md:mt-0 relative z-10 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 md:border-l border-ink-black/5 pt-[20px] md:pt-0 md:pl-[24px]" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex flex-col items-center md:items-end gap-[4px]">
+                    <span className="text-[11px] font-medium text-slate uppercase tracking-wider">Impact</span>
+                    <span className="text-[20px] font-semibold text-ink-black tracking-tight leading-none">{automation.listener?.dmCount || 0}</span>
+                  </div>
+
+                  <div className="flex items-center gap-[16px]">
+                    <AutomationToggle id={automation.id} active={automation.active} />
+                    <div className="w-[36px] h-[36px] rounded-xl bg-white border border-ink-black/5 shadow-sm flex items-center justify-center text-slate group-hover:border-ink-black/10 group-hover:text-ink-black transition-all duration-300">
+                      <ChevronRight size={16} />
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -252,52 +222,16 @@ export default function AutomationsPage() {
         )}
       </div>
 
-      {/* Right Sidebar */}
-      <div className="w-[320px] flex-shrink-0 flex flex-col gap-4 hidden lg:flex">
-        {/* Quick Start Guide */}
-        <div className="bg-[#0e0e11] border border-white/[0.06] rounded-2xl p-6 space-y-4">
-          <h3 className="text-sm font-bold text-white">Quick Start</h3>
-          <div className="space-y-3">
-            {[
-              { step: "1", text: "Create an automation", done: automations.length > 0 },
-              { step: "2", text: "Add triggers & keywords", done: automations.some((a) => a.trigger.length > 0) },
-              { step: "3", text: "Set reply message", done: automations.some((a) => a.listener?.commentReply) },
-              { step: "4", text: "Activate & test", done: automations.some((a) => a.active) },
-            ].map((item) => (
-              <div key={item.step} className="flex items-center gap-3">
-                <div
-                  className={`w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold ${
-                    item.done
-                      ? "bg-green-500/10 text-green-400 border border-green-500/20"
-                      : "bg-white/5 text-zinc-600 border border-white/5"
-                  }`}
-                >
-                  {item.done ? "✓" : item.step}
-                </div>
-                <span
-                  className={`text-xs ${item.done ? "text-zinc-400 line-through" : "text-zinc-300"}`}
-                >
-                  {item.text}
-                </span>
-              </div>
-            ))}
-          </div>
+      {/* ─── CTA ─── */}
+      <div className="p-[32px] bg-ink-black text-white rounded-2xl flex flex-col md:flex-row items-center justify-between gap-[24px] relative overflow-hidden group shadow-md mt-[16px]">
+        <div className="absolute right-0 top-0 w-[384px] h-[384px] spectrum-glow opacity-20 pointer-events-none -mr-[128px] -mt-[128px] group-hover:scale-110 transition-transform duration-[2s]" />
+        <div className="flex-grow z-10 relative text-center md:text-left">
+          <h2 className="text-[20px] font-semibold text-white tracking-tight mb-[8px]">Scale your autonomous architecture.</h2>
+          <p className="text-[14px] text-white/70 max-w-lg leading-relaxed">Upgrade to Pro for advanced sentiment processing, infinite flow depth, and high-velocity cycles.</p>
         </div>
-
-        {/* Upgrade Card */}
-        <div className="bg-gradient-to-br from-violet-950/40 to-indigo-950/40 border border-violet-500/10 rounded-2xl p-6 space-y-4 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-violet-500/5 blur-3xl" />
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-violet-400" />
-            <h3 className="text-sm font-bold text-white">Upgrade to Pro</h3>
-          </div>
-          <p className="text-xs text-zinc-400 leading-relaxed">
-            Unlock Smart AI responses, unlimited keywords, and priority support.
-          </p>
-          <button className="w-full py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-violet-600/20">
-            Upgrade — $99.99/mo
-          </button>
-        </div>
+        <button className="px-[24px] py-[12px] bg-white text-ink-black rounded-xl font-semibold text-[13px] hover:bg-white/90 transition-all z-10 transform active:scale-95 shrink-0 shadow-sm">
+          Unlock Enterprise Tier
+        </button>
       </div>
     </div>
   );

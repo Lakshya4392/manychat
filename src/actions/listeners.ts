@@ -23,7 +23,8 @@ export const updateListener = async (
   automationId: string,
   listener: "SMARTAI" | "MESSAGE",
   prompt: string,
-  reply?: string
+  reply?: string,
+  persona: "CASUAL" | "PROFESSIONAL" | "SALES" | "SUPPORT" | "CUSTOM" = "CUSTOM"
 ) => {
   const user = await currentUser();
   if (!user) return { status: 401 };
@@ -39,12 +40,14 @@ export const updateListener = async (
         listener,
         prompt,
         commentReply: reply,
+        persona,
       },
       create: {
         automationId,
         listener,
         prompt,
         commentReply: reply,
+        persona,
       },
     });
 

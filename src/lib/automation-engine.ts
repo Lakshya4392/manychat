@@ -5,7 +5,8 @@
 
 import { db } from "@/lib/db";
 import { instagram, InstagramDM } from "@/lib/instagram";
-import openai, { MessageContext } from "@/lib/openai";
+import { generateGeminiResponse, MessageContext } from "@/lib/gemini";
+import { AI_PERSONA, LISTENERS } from "@prisma/client";
 
 interface Keyword {
   id: string;
@@ -19,18 +20,20 @@ interface TriggerRelations {
 
 interface Listener {
   id: string;
-  listener: "SMARTAI" | "MESSAGE";
+  listener: LISTENERS;
   prompt?: string | null;
   commentReply?: string | null;
   welcomeMessage?: string | null;
   dmCount: number;
   commentCount: number;
+  persona: AI_PERSONA;
 }
 
 interface AutomationWithRelations {
   id: string;
   name: string;
   active: boolean;
+  isSemantic: boolean;
   userId: string;
   keywords: Keyword[];
   listener: Listener | null;
@@ -53,7 +56,6 @@ export class AutomationEngine {
     });
 
     // Fallback: If no match by ID, try to find any Instagram integration
-    // This handles cases where Instagram ID wasn't auto-detected during OAuth
     if (!integration) {
       integration = await db.integrations.findFirst({
         where: { 
@@ -85,34 +87,40 @@ export class AutomationEngine {
     }
 
     // 3. Find matching automation
-    const matchingAutomation = this.findMatchingAutomation(automations, dm);
+    const matchingAutomation = await this.findMatchingAutomation(automations, dm);
 
     if (!matchingAutomation) {
-      return { triggered: false, error: "No keyword match" };
+      return { triggered: false, error: "No match (keyword or semantic)" };
     }
 
-    // 4. Check if MESSAGE trigger exists
-    const hasMessageTrigger = matchingAutomation.trigger.some(
-      (t) => t.type === "MESSAGE"
+    // 4. Check if trigger exists
+    const hasTrigger = matchingAutomation.trigger.some(
+      (t) => t.type === "MESSAGE" || t.type === "STORY_MENTION" || t.type === "NEW_FOLLOWER"
     );
-    if (!hasMessageTrigger) {
-      return { triggered: false, error: "MESSAGE trigger not configured" };
+    if (!hasTrigger) {
+      return { triggered: false, error: "Active trigger not configured for this message type" };
     }
 
     // 5. Execute action
     let response: string;
 
     try {
-      if (matchingAutomation.listener?.listener === "SMARTAI") {
+      const listener = matchingAutomation.listener;
+      if (!listener) {
+        return { triggered: false, error: "No listener configured" };
+      }
+
+      if (listener.listener === "SMARTAI") {
         response = await this.generateAIResponse(
-          matchingAutomation.listener.prompt || "",
+          listener.prompt || "",
           dm.message,
-          matchingAutomation.userId
+          matchingAutomation.userId,
+          listener.persona
         );
         await this.incrementAIUsage(matchingAutomation.userId);
       } else {
         response =
-          matchingAutomation.listener?.commentReply ||
+          listener.commentReply ||
           "Thank you for your message!";
       }
 
@@ -138,6 +146,14 @@ export class AutomationEngine {
       // 9. Increment DM usage
       await this.incrementDMUsage(matchingAutomation.userId);
 
+      // 10. Schedule Follow-up (Full Funnel)
+      await this.scheduleFollowUp(
+        matchingAutomation.id,
+        dm.senderId,
+        matchingAutomation.userId,
+        `User sent a DM: ${dm.message}`
+      );
+
       return {
         triggered: true,
         automationId: matchingAutomation.id,
@@ -156,6 +172,7 @@ export class AutomationEngine {
    * Process comment event
    */
   async processCommentEvent(comment: {
+    recipientId: string;
     mediaId: string;
     commentId: string;
     senderId: string;
@@ -167,8 +184,9 @@ export class AutomationEngine {
     response?: string;
     error?: string;
   }> {
+    // Search by recipientId (the business account)
     const integration = await db.integrations.findUnique({
-      where: { instagramId: comment.senderId },
+      where: { instagramId: comment.recipientId },
     });
 
     if (!integration) return { triggered: false, error: "User not found" };
@@ -178,7 +196,7 @@ export class AutomationEngine {
       include: { keywords: true, listener: true, trigger: true },
     })) as unknown as AutomationWithRelations[];
 
-    const matchingAutomation = this.findMatchingAutomation(automations, {
+    const matchingAutomation = await this.findMatchingAutomation(automations, {
       type: "COMMENT",
       message: comment.text,
     });
@@ -192,43 +210,88 @@ export class AutomationEngine {
       return { triggered: false, error: "COMMENT trigger not set" };
 
     try {
-      const reply =
-        matchingAutomation.listener?.commentReply || "Thanks for your comment!";
+      const listener = matchingAutomation.listener;
+      if (!listener) {
+        return { triggered: false, error: "No listener configured" };
+      }
 
+      let response: string;
       const token = await instagram.getUserToken(matchingAutomation.userId);
       if (!token) throw new Error("No token");
+
+      // Fetch Post Context (Caption) to make AI smarter
+      let postContext = "";
+      try {
+        const mediaInfo = await instagram.getMediaInfo(comment.mediaId, token);
+        postContext = mediaInfo.caption || "";
+      } catch (err) {
+        console.warn("Could not fetch post context:", err);
+      }
+
+      // 1. Generate response (AI or Fixed)
+      if (listener.listener === "SMARTAI") {
+        response = await this.generateAIResponse(
+          listener.prompt || "",
+          comment.text,
+          matchingAutomation.userId,
+          listener.persona,
+          postContext // Pass the post caption as context
+        );
+        await this.incrementAIUsage(matchingAutomation.userId);
+      } else {
+        response =
+          listener.commentReply ||
+          "Thanks for your comment! Check your DMs for more info.";
+      }
+
+      // 2. Publicly reply to the comment
+      const publicReply = listener.listener === "SMARTAI" 
+        ? "Just sent you a DM with the details! 🚀" 
+        : "Check your DMs! I've sent you the info. 📥";
 
       await instagram.replyToComment(
         comment.mediaId,
         comment.commentId,
-        reply,
+        publicReply,
         token
       );
 
-      await db.dms.create({
-        data: {
-          automationId: matchingAutomation.id,
-          senderId: comment.senderId,
-          senderUsername: comment.senderUsername,
-          reciever: comment.senderUsername,
-          message: comment.text,
-          messageType: "COMMENT",
-          automationResponse: reply,
-          isFromBot: true,
-        },
-      });
+      // 3. Privately send the full response via DM
+      await instagram.sendPrivateReply(comment.commentId, response, token);
 
+      // 4. Log the interaction
+      await this.logDM({
+        senderId: comment.senderId,
+        senderUsername: comment.senderUsername,
+        recipientId: comment.recipientId,
+        message: comment.text,
+        type: "COMMENT",
+        timestamp: new Date().toISOString()
+      }, matchingAutomation.id, response);
+
+      // 5. Update stats
       await db.listener.update({
-        where: { id: matchingAutomation.listener!.id },
-        data: { commentCount: { increment: 1 } },
+        where: { id: listener.id },
+        data: { 
+          commentCount: { increment: 1 },
+          dmCount: { increment: 1 }
+        },
       });
 
       await this.incrementDMUsage(matchingAutomation.userId);
 
+      // 6. Schedule Follow-up
+      await this.scheduleFollowUp(
+        matchingAutomation.id,
+        comment.senderId,
+        matchingAutomation.userId,
+        `User commented: ${comment.text} on post ${comment.mediaId}`
+      );
+
       return {
         triggered: true,
         automationId: matchingAutomation.id,
-        response: reply,
+        response,
       };
     } catch (error) {
       console.error("Comment reply error:", error);
@@ -240,15 +303,20 @@ export class AutomationEngine {
   }
 
   /**
-   * Find automation that matches the message keywords
+   * Find automation that matches the message keywords OR semantic intent
    */
-  private findMatchingAutomation(
+  private async findMatchingAutomation(
     automations: AutomationWithRelations[],
-    dm: { message: string; type: string }
-  ): AutomationWithRelations | null {
+    dm: { message: string; type?: string }
+  ): Promise<AutomationWithRelations | null> {
     const messageLower = dm.message.toLowerCase();
 
+    // 1. First Pass: Hard Keyword Match (Fast)
     for (const automation of automations) {
+      if (automation.keywords.length === 0 && automation.listener) {
+        return automation;
+      }
+
       const hasKeywordMatch = automation.keywords.some((kw) =>
         messageLower.includes(kw.word.toLowerCase())
       );
@@ -258,43 +326,125 @@ export class AutomationEngine {
       }
     }
 
+    // 2. Second Pass: Semantic Match (AI-powered, for emojis and variations)
+    const semanticAutomations = automations.filter(a => a.isSemantic);
+    if (semanticAutomations.length > 0) {
+      console.log(`🧠 Attempting semantic match for: "${dm.message}"`);
+      for (const automation of semanticAutomations) {
+        const isMatch = await this.checkSemanticMatch(dm.message, automation);
+        if (isMatch) {
+          console.log(`✅ Semantic match found: ${automation.name}`);
+          return automation;
+        }
+      }
+    }
+
     return null;
   }
 
   /**
-   * Generate AI response using OpenAI
+   * Use AI to check if a message matches the intent of an automation
+   */
+  private async checkSemanticMatch(message: string, automation: AutomationWithRelations): Promise<boolean> {
+    const keywords = automation.keywords.map(k => k.word).join(", ");
+    const systemPrompt = `You are an intent classifier. Your goal is to determine if a user's message (which could be an emoji, slang, or a question) matches the intent of an automation.
+    
+    Automation Name: ${automation.name}
+    Target Keywords: ${keywords}
+    
+    Return "MATCH" if the message aligns with the intent of these keywords or the automation name. 
+    Return "NO_MATCH" otherwise.
+    Only return one word.`;
+
+    try {
+      const result = await generateGeminiResponse(systemPrompt, message, []);
+      return result.trim().toUpperCase() === "MATCH";
+    } catch (error) {
+      console.error("Semantic match error:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Generate AI response using OpenAI/Gemini
    */
   private async generateAIResponse(
     prompt: string,
     userMessage: string,
-    userId: string
+    userId: string,
+    persona?: string,
+    postContext?: string
   ): Promise<string> {
+    const user = await db.user.findUnique({
+        where: { id: userId },
+        select: { brandContext: true, firstname: true }
+    });
+
+    const PERSONA_PROMPTS = {
+      CASUAL: "Your tone is casual, friendly, and relatable. Use emojis, Gen-Z slang if appropriate, and keep it lighthearted.",
+      PROFESSIONAL: "Your tone is formal, professional, and precise. Be clear, polite, and avoid slang or excessive emojis.",
+      SALES: "Your tone is persuasive and energetic. Focus on value, build excitement, and guide the user toward a conversion or purchase.",
+      SUPPORT: "Your tone is helpful, empathetic, and solution-oriented. Be concise, technical where necessary, and focus on solving the user's problem.",
+      CUSTOM: "",
+    };
+
+    const selectedPersona = PERSONA_PROMPTS[persona as keyof typeof PERSONA_PROMPTS] || "";
+    const creatorSoul = user?.brandContext ? `\n\nCREATOR BRAND CONTEXT (Your Identity): ${user.brandContext}` : "";
+    
     const recentHistory = await this.getConversationHistory(userId, 5);
 
-    const messages: MessageContext[] = [
-      {
-        role: "system",
-        content: `You are an Instagram DM assistant. ${prompt}\n\nRespond briefly (under 100 words), casual tone.`,
-      },
-      ...recentHistory,
-      { role: "user", content: userMessage },
-    ];
+    const contextPrompt = postContext 
+      ? `\n\nPOST CONTEXT: The user is engaging with a post with this caption: "${postContext}".` 
+      : "";
+
+    const systemPrompt = `You are a personalized Instagram AI assistant for ${user?.firstname || "a creator"}. ${selectedPersona} ${prompt}${creatorSoul}${contextPrompt}
+    
+    Guidelines:
+    - Respond briefly (under 80 words).
+    - Be helpful but human-like.
+    - If the user sent an emoji, respond with a matching vibe.
+    - Maintain the creator's identity at all times.`;
 
     try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: messages as Parameters<typeof openai.chat.completions.create>[0]["messages"],
-        max_tokens: 150,
-        temperature: 0.7,
-      });
-
-      return (
-        completion.choices[0]?.message?.content ||
-        "I'm here to help! How can I assist you?"
+      const response = await generateGeminiResponse(
+        systemPrompt,
+        userMessage,
+        recentHistory
       );
+
+      return response || "I'm here to help! How can I assist you?";
     } catch (error) {
-      console.error("OpenAI error:", error);
+      console.error("Gemini error:", error);
       return "Thanks for your message! I'll get back to you soon.";
+    }
+  }
+
+  /**
+   * Schedule a follow-up DM (Full Funnel Logic)
+   */
+  private async scheduleFollowUp(
+    automationId: string,
+    senderId: string,
+    userId: string,
+    context: string
+  ): Promise<void> {
+    try {
+      // Schedule follow-up 24 hours from now
+      const scheduledAt = new Date();
+      scheduledAt.setHours(scheduledAt.getHours() + 24);
+
+      await db.followUp.create({
+        data: {
+          automationId,
+          senderId,
+          userId,
+          scheduledAt,
+          context,
+        }
+      });
+      console.log(`🕒 Follow-up scheduled for ${senderId} in 24h`);
+    } catch (error) {
+      console.error("Failed to schedule follow-up:", error);
     }
   }
 
@@ -327,7 +477,7 @@ export class AutomationEngine {
     });
 
     const history: MessageContext[] = messages.map((msg) => ({
-      role: msg.isFromBot ? "assistant" : "user",
+      role: msg.isFromBot ? "model" : "user",
       content: msg.message || "",
     }));
 

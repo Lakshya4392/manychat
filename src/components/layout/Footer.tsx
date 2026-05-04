@@ -2,41 +2,43 @@ import Link from "next/link";
 
 export default function Footer() {
   return (
-    <footer className="w-full py-12 border-t border-border mt-auto">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+    <footer className="w-full py-24 border-t border-ink-black/5 bg-canvas relative z-20">
+      <div className="max-w-[1200px] mx-auto px-6 md:px-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
           <div className="col-span-1 md:col-span-2">
-            <Link href="/" className="text-xl font-bold font-heading tracking-tighter text-white">
-              MANY<span className="text-primary">CHAT</span>
+            <Link href="/" className="flex items-center gap-3 group cursor-pointer w-max">
+              <div className="w-8 h-8 bg-ink-black rounded-[8px] flex items-center justify-center">
+                <div className="w-2 h-2 bg-white rounded-full"></div>
+              </div>
+              <span className="text-xl font-medium tracking-tighter text-ink-black">Dia.</span>
             </Link>
-            <p className="mt-4 text-muted-foreground max-w-xs">
-              The ultimate starting point for your next great idea. Built with speed and elegance in mind.
+            <p className="mt-6 text-slate max-w-sm font-regular leading-relaxed text-[15px]">
+              Stop losing leads in your DMs. Deploy intelligent AI personas to monetize your audience on autopilot.
             </p>
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-white tracking-wider uppercase">Product</h3>
-            <ul className="mt-4 space-y-2">
-              <li><Link href="#" className="text-muted-foreground hover:text-white transition-colors">Features</Link></li>
-              <li><Link href="#" className="text-muted-foreground hover:text-white transition-colors">Pricing</Link></li>
-              <li><Link href="#" className="text-muted-foreground hover:text-white transition-colors">Documentation</Link></li>
+            <h3 className="text-[14px] font-medium text-ink-black mb-6">Product</h3>
+            <ul className="space-y-4">
+              <li><Link href="#features" className="text-[14px] text-slate hover:text-ink-black transition-colors">Features</Link></li>
+              <li><Link href="#flows" className="text-[14px] text-slate hover:text-ink-black transition-colors">Workflows</Link></li>
+              <li><Link href="#pricing" className="text-[14px] text-slate hover:text-ink-black transition-colors">Pricing</Link></li>
             </ul>
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-white tracking-wider uppercase">Company</h3>
-            <ul className="mt-4 space-y-2">
-              <li><Link href="#" className="text-muted-foreground hover:text-white transition-colors">About</Link></li>
-              <li><Link href="#" className="text-muted-foreground hover:text-white transition-colors">Blog</Link></li>
-              <li><Link href="#" className="text-muted-foreground hover:text-white transition-colors">Contact</Link></li>
+            <h3 className="text-[14px] font-medium text-ink-black mb-6">Legal</h3>
+            <ul className="space-y-4">
+              <li><Link href="#" className="text-[14px] text-slate hover:text-ink-black transition-colors">Privacy Policy</Link></li>
+              <li><Link href="#" className="text-[14px] text-slate hover:text-ink-black transition-colors">Terms of Service</Link></li>
             </ul>
           </div>
         </div>
-        <div className="mt-12 border-t border-border pt-8 flex justify-between items-center">
-          <p className="text-muted-foreground text-sm">
-            &copy; {new Date().getFullYear()} ManyChat. All rights reserved.
+        <div className="mt-24 border-t border-ink-black/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+          <p className="text-slate text-[13px]">
+            &copy; {new Date().getFullYear()} Dia. All rights reserved.
           </p>
-          <div className="flex space-x-6">
-            <span className="text-muted-foreground hover:text-white transition-colors cursor-pointer">Twitter</span>
-            <span className="text-muted-foreground hover:text-white transition-colors cursor-pointer">GitHub</span>
+          <div className="flex space-x-8">
+            <span className="text-[13px] text-slate hover:text-ink-black transition-colors cursor-pointer">Twitter</span>
+            <span className="text-[13px] text-slate hover:text-ink-black transition-colors cursor-pointer">Instagram</span>
           </div>
         </div>
       </div>

@@ -19,6 +19,7 @@ model User {
   email        String         @unique
   firstname    String?        @unique
   lastname     String?        @unique
+  brandContext String?        @db.Text
   createdAt    DateTime       @default(now())
   subscription Subscription?
   integrations Integrations[]
@@ -60,17 +61,18 @@ model Integrations {
 }
 
 model Automation {
-  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name      String    @default("Untitled")
-  createdAt DateTime  @default(now())
-  active    Boolean   @default(false)
-  trigger   Trigger[]
-  listener  Listener?
-  posts     Post[]
-  dms       Dms[]
-  User      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String?   @db.Uuid
-  keywords  Keyword[]
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String    @default("Untitled")
+  createdAt   DateTime  @default(now())
+  active      Boolean   @default(false)
+  isSemantic  Boolean   @default(false)
+  trigger     Trigger[]
+  listener    Listener?
+  posts       Post[]
+  dms         Dms[]
+  User        User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String?   @db.Uuid
+  keywords    Keyword[]
 }
 
 model Dms {
@@ -128,8 +130,28 @@ model Listener {
   prompt           String?
   commentReply     String?
   welcomeMessage   String?
+  persona          AI_PERSONA @default(CUSTOM)
   dmCount          Int        @default(0)
   commentCount     Int        @default(0)
+}
+
+model FollowUp {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  automationId String      @db.Uuid
+  senderId     String      // The user to follow up with
+  userId       String      @db.Uuid // The business owner
+  scheduledAt  DateTime
+  processed    Boolean     @default(false)
+  context      String?     @db.Text // Context of the original interaction
+  createdAt    DateTime    @default(now())
+}
+
+enum AI_PERSONA {
+  CASUAL
+  PROFESSIONAL
+  SALES
+  SUPPORT
+  CUSTOM
 }
 
 enum SUBSCRIPTION_PLAN {

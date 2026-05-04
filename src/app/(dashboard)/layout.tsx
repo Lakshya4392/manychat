@@ -12,11 +12,11 @@ export default async function DashboardLayout({
   await onBoardUser();
 
   return (
-    <div className="flex min-h-screen bg-[#09090b]">
+    <div className="flex min-h-screen bg-[#f8f8f8]">
       <Sidebar />
-      <main className="flex-grow ml-64 flex flex-col">
+      <main className="flex-1 min-w-0 ml-64 flex flex-col min-h-screen">
         <SearchBar />
-        <div className="p-6">
+        <div className="flex-1 p-8">
           {children}
         </div>
       </main>

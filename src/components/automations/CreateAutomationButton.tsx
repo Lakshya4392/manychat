@@ -5,7 +5,6 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -39,46 +38,44 @@ export default function CreateAutomationButton({ variant = "default" }: { varian
 
   return (
     <>
-      <Button
+      <button
         onClick={handleCreate}
         disabled={isPending}
-        variant={variant}
         className={
           variant === "default"
-            ? "bg-primary text-white hover:bg-primary/90"
-            : "bg-white/5 hover:bg-white/10"
+            ? "flex items-center justify-center gap-[8px] px-[24px] py-[12px] bg-ink-black text-white hover:bg-ink-black/90 active:scale-95 rounded-xl font-semibold text-[13px] transition-all shadow-sm disabled:opacity-50"
+            : "flex items-center justify-center gap-[8px] px-[24px] py-[12px] bg-white border border-ink-black/5 text-ink-black hover:bg-canvas active:scale-95 rounded-xl font-semibold text-[13px] transition-all shadow-sm disabled:opacity-50"
         }
       >
-        <Plus className="w-4 h-4 mr-2" />
+        <Plus size={16} />
         Create Automation
-      </Button>
+      </button>
 
       <Dialog open={showLimitModal} onOpenChange={setShowLimitModal}>
-        <DialogContent className="bg-[#121215] border border-white/5">
+        <DialogContent className="bg-white border border-ink-black/5 shadow-xl rounded-2xl sm:rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="text-white">Automation Limit Reached</DialogTitle>
-            <DialogDescription className="text-zinc-500">
+            <DialogTitle className="text-xl font-semibold text-ink-black tracking-tight">Automation Limit Reached</DialogTitle>
+            <DialogDescription className="text-[14px] text-slate font-medium leading-relaxed">
               You&apos;ve reached the maximum number of automations on the Free plan.
               Upgrade to Pro to create unlimited automations.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex gap-3 sm:gap-0">
-            <Button
-              variant="outline"
+          <DialogFooter className="flex gap-[12px] sm:gap-0 mt-[16px]">
+            <button
               onClick={() => setShowLimitModal(false)}
-              className="bg-white/5 border-white/5"
+              className="px-[20px] py-[10px] rounded-xl bg-white border border-ink-black/5 text-ink-black font-medium text-[13px] hover:bg-canvas transition-all"
             >
               Maybe Later
-            </Button>
-            <Button
+            </button>
+            <button
               onClick={() => {
                 setShowLimitModal(false);
                 router.push("/profile?tab=billing");
               }}
-              className="bg-gradient-to-r from-primary to-accent text-white hover:opacity-90"
+              className="px-[20px] py-[10px] rounded-xl bg-ink-black text-white font-semibold text-[13px] hover:bg-ink-black/90 shadow-sm transition-all"
             >
               Upgrade to Pro
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

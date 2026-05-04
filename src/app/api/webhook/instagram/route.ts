@@ -31,8 +31,10 @@ export async function POST(req: Request) {
     for (const event of events) {
       (async () => {
         try {
+          let result;
+          
           if (event.type === "DM") {
-            const result = await automationEngine.processDMEvent({
+            result = await automationEngine.processDMEvent({
               senderId: event.senderId,
               senderUsername: event.senderUsername,
               recipientId: event.recipientId,
@@ -40,15 +42,31 @@ export async function POST(req: Request) {
               timestamp: event.timestamp,
               type: "DM",
             });
+          } else if (event.type === "COMMENT") {
+            result = await automationEngine.processCommentEvent({
+              recipientId: event.recipientId,
+              mediaId: event.mediaId || "",
+              commentId: event.commentId || "",
+              senderId: event.senderId,
+              senderUsername: event.senderUsername,
+              text: event.message,
+            });
+          } else if (event.type === "STORY_MENTION") {
+            result = await automationEngine.processDMEvent({
+              senderId: event.senderId,
+              senderUsername: event.senderUsername,
+              recipientId: event.recipientId,
+              message: event.message || "Mentioned in story",
+              timestamp: event.timestamp,
+              type: "STORY_MENTION",
+            });
+          }
 
-            if (result.triggered) {
-              console.log(`✅ Automation triggered: ${result.automationId} -> ${result.response?.substring(0, 50)}`);
-            } else {
-              console.log(`❌ No automation triggered: ${result.error}`);
-            }
+          if (result?.triggered) {
+            console.log(`✅ Automation [${event.type}] triggered: ${result.automationId}`);
           }
         } catch (error) {
-          console.error("Webhook processing error:", error);
+          console.error(`Webhook processing error [${event.type}]:`, error);
         }
       })();
     }

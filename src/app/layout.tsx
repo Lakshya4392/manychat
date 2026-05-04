@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Outfit, Inter } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
-import { ThemeProvider } from "@/components/providers/ThemeProvider";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -15,7 +14,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Slide | Premium Automation Platform",
+  title: "Inboxly | Premium Automation Platform",
   description: "Automate your workflows with the next-generation premium dashboard.",
 };
 
@@ -25,21 +24,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang="en" suppressHydrationWarning>
-        <body
-          className={`${outfit.variable} ${inter.variable} antialiased font-sans bg-[#09090b] text-white`}
-        >
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            enableSystem
-            disableTransitionOnChange
-          >
-            {children}
-          </ThemeProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body
+        className={`${outfit.variable} ${inter.variable} antialiased font-sans bg-[#09090b] text-white`}
+      >
+        <ClerkProvider>
+          {children}
+        </ClerkProvider>
+      </body>
+    </html>
   );
 }
+

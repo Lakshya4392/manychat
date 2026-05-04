@@ -1,10 +1,14 @@
 import DashboardCard from "@/components/ui/DashboardCard";
-import { LayoutDashboard, TrendingUp, Circle } from "lucide-react";
+import { TrendingUp, Sparkles, ArrowUpRight, Hash, MessageSquare, Users, Zap, LayoutGrid } from "lucide-react";
 import { currentUser } from "@clerk/nextjs/server";
+import { getDashboardStats, getChartData } from "@/actions/analytics";
+import AnalyticsChart from "@/components/dashboard/AnalyticsChart";
 
 export default async function DashboardPage() {
   const user = await currentUser();
-  
+  const stats = await getDashboardStats();
+  const chartData = await getChartData();
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good morning";
@@ -12,105 +16,155 @@ export default async function DashboardPage() {
     return "Good evening";
   };
 
+  const dashboardCards = [
+    { title: "Auto-Reply Engine", description: "Deliver product lineups and automated responses via Instagram DM" },
+    { title: "Intelligence Hub", description: "Identify and respond to queries with autonomous AI agents" },
+    { title: "Growth Funnels", description: "Engage with your audience 24/7 and convert comments to leads" }
+  ];
+
   return (
-    <>
-      <div className="flex flex-col gap-1 mb-10">
-        <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{getGreeting()}</span>
-            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-green-500/10 border border-green-500/20 rounded-full">
-                <Circle className="w-1.5 h-1.5 fill-green-500 text-green-500 animate-pulse" />
-                <span className="text-[10px] font-bold text-green-500 uppercase tracking-tighter">Live</span>
-            </div>
+    <div className="flex flex-col gap-8">
+      {/* ─── Header ─── */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">{getGreeting()}</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-black text-white rounded-full">
+            <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+            <span className="text-[10px] font-semibold uppercase tracking-tight">System Live</span>
+          </div>
         </div>
-        <h1 className="text-3xl font-bold text-white font-heading tracking-tight">
-          Welcome back, {user?.firstName || "User"}!
+        <h1 className="text-3xl font-bold text-black tracking-tight">
+          Welcome back, {user?.firstName || "Operator"}
         </h1>
-        <p className="text-sm text-zinc-500 max-w-lg">
-            Here&apos;s a quick overview of your automations and engagement for the last 30 days.
+        <p className="text-[13px] text-gray-500 max-w-lg leading-relaxed">
+          Monitor your autonomous engagement metrics and flow performance.
         </p>
       </div>
 
-      <div className="mt-8">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="p-2 bg-primary/10 rounded-xl border border-primary/20">
-            <LayoutDashboard className="w-5 h-5 text-primary" />
+      {/* ─── Metrics Row ─── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-[16px]">
+        <div className="p-[24px] bg-white border border-black/[0.08] rounded-xl flex items-center gap-[16px] hover:shadow-sm transition-all">
+          <div className="w-[48px] h-[48px] rounded-lg bg-gray-50 border border-black/[0.06] flex items-center justify-center shrink-0">
+            <Users size={24} className="text-gray-500" />
           </div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">Home</h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <DashboardCard 
-            title="Set-up Auto Replies"
-            description="Deliver a product lineup through Instagram DM"
-            footerText="Get products in front of your followers in as many places"
-          />
-          <DashboardCard 
-            title="Answer Questions with AI"
-            description="Identify and respond to queries with AI"
-            footerText="The intention of the message will be automatically detected"
-          />
-          <DashboardCard 
-            title="Answer Questions with AI"
-            description="Identify and respond to queries with AI"
-            footerText="The intention of the message will be automatically detected"
-          />
-        </div>
-      </div>
-
-      <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-6 pb-12">
-        <div className="lg:col-span-2 card-glow p-8 flex flex-col border border-white/5">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-xl border border-primary/20">
-                <TrendingUp className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-white">Automated Activity</h2>
-                <p className="text-xs text-zinc-500">Automated 0 out of 1 interactions</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4 text-xs font-medium text-zinc-500">
-              <span className="hover:text-white cursor-pointer transition-colors">Yesterday</span>
-              <div className="px-3 py-1 bg-white/5 rounded-lg text-white">Last 30 Days</div>
-            </div>
-          </div>
-
-          <div className="relative h-64 w-full mt-auto">
-            <div className="absolute inset-0 wavy-chart opacity-30" />
-            <div className="absolute inset-x-0 bottom-0 flex justify-between px-2 text-[10px] text-zinc-600 uppercase tracking-widest font-bold">
-              <span>Mon</span>
-              <span>Tue</span>
-              <span>Wed</span>
-              <span>Thu</span>
-              <span>Fri</span>
-              <span>Sat</span>
-              <span>Sun</span>
-            </div>
+          <div className="flex flex-col gap-[4px]">
+            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Captured</span>
+            <span className="text-2xl font-bold text-black tracking-tight">{stats?.comments || 0}</span>
           </div>
         </div>
 
-        <div className="flex flex-col gap-6">
-          <div className="card-glow p-8 flex-grow border border-white/5">
-            <h3 className="text-lg font-bold text-white mb-1">Comments</h3>
-            <p className="text-xs text-zinc-500 mb-8">On your posts</p>
-            
-            <div className="mt-auto">
-              <span className="text-5xl font-bold text-white tracking-tighter">50%</span>
-              <p className="text-xs text-zinc-500 mt-2">3 out of 6 comments replied</p>
-            </div>
+        <div className="p-[24px] bg-white border border-black/[0.08] rounded-xl flex items-center gap-[16px] hover:shadow-sm transition-all">
+          <div className="w-[48px] h-[48px] rounded-lg bg-black flex items-center justify-center shrink-0">
+            <Zap size={24} className="text-white" />
           </div>
-          
-          <div className="card-glow p-8 flex-grow border border-white/5">
-            <h3 className="text-lg font-bold text-white mb-1">Direct Message</h3>
-            <p className="text-xs text-zinc-500 mb-8">On your account</p>
-            
-            <div className="mt-auto">
-              <span className="text-5xl font-bold text-white tracking-tighter">50%</span>
-              <p className="text-xs text-zinc-500 mt-2">3 out of 6 DMs replied</p>
-            </div>
+          <div className="flex flex-col gap-[4px]">
+            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Success Rate</span>
+            <span className="text-2xl font-bold text-black tracking-tight">{stats?.responseRate || 0}%</span>
+          </div>
+        </div>
+
+        <div className="p-[24px] bg-white border border-black/[0.08] rounded-xl flex items-center gap-[16px] hover:shadow-sm transition-all">
+          <div className="w-[48px] h-[48px] rounded-lg bg-gray-50 border border-black/[0.06] flex items-center justify-center shrink-0">
+            <LayoutGrid size={24} className="text-gray-500" />
+          </div>
+          <div className="flex flex-col gap-[4px]">
+            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">DMs Sent</span>
+            <span className="text-2xl font-bold text-black tracking-tight">{stats?.dms || 0}</span>
           </div>
         </div>
       </div>
-    </>
+
+      {/* ─── Chart + Side Stats ─── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-[16px]">
+        <div className="lg:col-span-2 relative p-[32px] flex flex-col bg-white border border-black/[0.08] rounded-xl overflow-hidden">
+          <div className="flex items-center gap-[12px] mb-[24px]">
+            <div className="p-[10px] bg-gray-50 rounded-lg border border-black/[0.06]">
+              <TrendingUp size={16} className="text-black" />
+            </div>
+            <div>
+              <h2 className="text-[15px] font-bold text-black tracking-tight">Autonomous Activity</h2>
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
+                {stats?.totalInteractions || 0} Total Interactions
+              </p>
+            </div>
+          </div>
+
+          <div className="relative h-64 w-full">
+            {chartData && chartData.length > 0 && chartData.some(d => d.count > 0) ? (
+              <AnalyticsChart data={chartData} />
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <Sparkles className="w-6 h-6 text-gray-200 mb-3" />
+                <p className="text-[11px] text-gray-300 uppercase tracking-widest font-semibold">Waiting for engine activity</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Side Metrics */}
+        <div className="flex flex-col gap-[16px]">
+          <div className="p-[24px] flex-1 bg-white border border-black/[0.08] rounded-xl flex flex-col justify-between hover:shadow-sm transition-all">
+            <div className="flex items-center justify-between mb-[12px]">
+              <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Comments</h3>
+              <div className="w-[40px] h-[40px] bg-gray-50 rounded-lg flex items-center justify-center border border-black/[0.06]">
+                <Hash size={16} className="text-gray-400" />
+              </div>
+            </div>
+            <div>
+              <span className="text-4xl font-bold text-black tracking-tight">{stats?.comments || 0}</span>
+              <div className="flex items-center gap-1.5 mt-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-black" />
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Captured</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-[24px] flex-1 bg-white border border-black/[0.08] rounded-xl flex flex-col justify-between hover:shadow-sm transition-all">
+            <div className="flex items-center justify-between mb-[12px]">
+              <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">DMs</h3>
+              <div className="w-[40px] h-[40px] bg-gray-50 rounded-lg flex items-center justify-center border border-black/[0.06]">
+                <MessageSquare size={16} className="text-gray-400" />
+              </div>
+            </div>
+            <div>
+              <span className="text-4xl font-bold text-black tracking-tight">{stats?.dms || 0}</span>
+              <div className="flex items-center gap-1.5 mt-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-black" />
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Responses Sent</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Active Funnels ─── */}
+      <div className="flex flex-col gap-[12px]">
+        <h2 className="text-[14px] font-bold text-black tracking-tight">Active Funnels</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[16px]">
+          {dashboardCards.map((card, index) => (
+            <DashboardCard key={index} title={card.title} description={card.description} />
+          ))}
+        </div>
+      </div>
+
+      {/* ─── AI Tip ─── */}
+      <div className="p-[32px] bg-black text-white rounded-xl relative overflow-hidden">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-[20px]">
+          <div className="flex items-center gap-[16px]">
+            <div className="w-[40px] h-[40px] bg-white/10 rounded-lg flex items-center justify-center border border-white/10 shrink-0">
+              <Sparkles size={20} className="text-white" />
+            </div>
+            <div>
+              <h3 className="text-[14px] font-bold text-white tracking-tight mb-0.5">AI Optimization Recommended</h3>
+              <p className="text-[12px] text-white/50 max-w-lg leading-relaxed">Flow #2 engagement is dropping. Add a semantic follow-up node to boost retention by 24%.</p>
+            </div>
+          </div>
+          <button className="px-5 py-2.5 bg-white text-black rounded-lg font-semibold text-[13px] transition-all active:scale-95 flex items-center gap-2 shrink-0 hover:bg-gray-100">
+            Apply Insight
+            <ArrowUpRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

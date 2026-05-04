@@ -31,6 +31,7 @@ export default async function AutomationBuilderPage({
       keywords: true,
       trigger: true,
       listener: true,
+      posts: true,
     },
   });
 
