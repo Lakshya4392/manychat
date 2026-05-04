@@ -14,6 +14,7 @@ export async function GET(req: Request) {
   const redirectUri = `${origin}/api/instagram/callback`;
 
   if (error) {
+    console.error("[OAuth] Meta returned error:", error);
     return NextResponse.redirect(`${origin}/integrations?error=${encodeURIComponent(error)}`);
   }
 
@@ -41,24 +42,20 @@ export async function GET(req: Request) {
 
     // 2. Exchange code for access token
     console.log("[OAuth] Exchanging code for token...");
-    const tokenUrl = new URL("https://graph.facebook.com/v21.0/oauth/access_token");
-    tokenUrl.searchParams.set("client_id", clientId);
-    tokenUrl.searchParams.set("client_secret", clientSecret);
-    tokenUrl.searchParams.set("redirect_uri", redirectUri);
-    tokenUrl.searchParams.set("code", code);
-
-    const tokenRes = await fetch(tokenUrl.toString());
+    const tokenRes = await fetch(
+      `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${clientId}&client_secret=${clientSecret}&redirect_uri=${redirectUri}&code=${code}`
+    );
     const tokenData = await tokenRes.json();
 
-    if (tokenData.error) {
-      console.error("[OAuth] Token Error:", tokenData.error);
-      return NextResponse.redirect(`${origin}/integrations?error=${encodeURIComponent(tokenData.error.message || "token_failed")}`);
+    if (!tokenData.access_token) {
+      console.error("[OAuth] Token exchange failed:", tokenData);
+      return NextResponse.redirect(`${origin}/integrations?error=token_exchange_failed`);
     }
 
     const accessToken = tokenData.access_token;
     console.log("[OAuth] Got user access token ✓");
 
-    // 3. Find the Facebook Page linked to the Instagram Business Account and get its Page Token
+    // 3. Find connected Instagram Account and Page Token
     let instagramId: string | null = null;
     let pageAccessToken: string | null = null;
 
@@ -73,28 +70,27 @@ export async function GET(req: Request) {
         for (const page of pagesData.data) {
           if (page.instagram_business_account?.id) {
             instagramId = page.instagram_business_account.id;
-            pageAccessToken = page.access_token; // <--- THIS IS THE TOKEN WE NEED FOR MESSAGING
-            console.log(`[OAuth] Found IG Account ${instagramId} linked to Page ${page.name}`);
+            pageAccessToken = page.access_token;
+            console.log(`[OAuth] Found IG Account ${instagramId} linked to Page: ${page.name}`);
             break;
           }
         }
       }
     } catch (e) {
-      console.error("[OAuth] Failed to fetch pages/tokens:", e);
+      console.error("[OAuth] Failed to fetch pages:", e);
     }
 
+    // Fallback: Direct lookup if Page lookup failed
     if (!instagramId) {
       try {
         console.log("[OAuth] Page search failed, trying direct lookup...");
         const meRes = await fetch(
-          `https://graph.facebook.com/v21.0/me?fields=id,name,instagram_business_account&access_token=${accessToken}`
+          `https://graph.facebook.com/v21.0/me?fields=id,instagram_business_account&access_token=${accessToken}`
         );
         const meData = await meRes.json();
         if (meData.instagram_business_account?.id) {
           instagramId = meData.instagram_business_account.id;
-          // Note: We still use the user accessToken here as a fallback, 
-          // though some messaging features might need a page token.
-          pageAccessToken = accessToken; 
+          pageAccessToken = accessToken;
           console.log(`[OAuth] Found IG Account via direct lookup: ${instagramId}`);
         }
       } catch (e) {
@@ -102,38 +98,27 @@ export async function GET(req: Request) {
       }
     }
 
-    if (!instagramId) {
-        console.warn("[OAuth] No Business ID found, using fallback ID logic...");
-        // Use a dummy or temporary ID if we absolutely have to, 
-        // but try to avoid it. For now, let's just log and try to save the user token.
-        instagramId = "PENDING_SETUP"; 
-    }
-
-    if (!pageAccessToken) {
-        pageAccessToken = accessToken; // Fallback to user token
-    }
-
-    // 4. Save the PAGE TOKEN to Database (Required for Messaging)
+    // 4. Save to Database
     const dbUser = await db.user.findUnique({ where: { clerkId } });
     if (!dbUser) throw new Error("User not found in DB");
 
     await db.integrations.upsert({
       where: { userId_name: { userId: dbUser.id, name: "INSTAGRAM" } },
       update: {
-        token: pageAccessToken,
-        instagramId: instagramId,
+        token: pageAccessToken || accessToken,
+        instagramId: instagramId || "PENDING_SETUP",
         expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
       },
       create: {
         userId: dbUser.id,
         name: "INSTAGRAM",
-        token: pageAccessToken,
-        instagramId: instagramId,
+        token: pageAccessToken || accessToken,
+        instagramId: instagramId || "PENDING_SETUP",
         expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
       },
     });
 
-    console.log(`[OAuth] Saved Page Token for Instagram ID: ${instagramId}`);
+    console.log(`[OAuth] Success! Integration saved. ID: ${instagramId || "PENDING_SETUP"}`);
     revalidatePath("/integrations");
 
     return NextResponse.redirect(`${origin}/integrations?success=true`);
