@@ -10,7 +10,7 @@
 import { db } from "@/lib/db";
 
 // Instagram Graph API base URL
-const GRAPH_API_URL = "https://graph.instagram.com/v21.0";
+const GRAPH_API_URL = "https://graph.facebook.com/v21.0";
 const INSTAGRAM_CLIENT_ID = process.env.INSTAGRAM_CLIENT_ID;
 const INSTAGRAM_CLIENT_SECRET = process.env.INSTAGRAM_CLIENT_SECRET;
 

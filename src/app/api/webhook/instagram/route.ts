@@ -24,9 +24,10 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    console.log("Incoming Instagram webhook:", JSON.stringify(body, null, 2));
+    console.log("📌 Incoming Webhook Payload:", JSON.stringify(body, null, 2));
 
     const events = instagram.parseWebhook(body);
+    console.log(`🔍 Parsed ${events.length} events from webhook`);
 
     for (const event of events) {
       (async () => {
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
           let result;
           
           if (event.type === "DM") {
+            console.log(`💬 Processing DM from ${event.senderUsername}: "${event.message}"`);
             result = await automationEngine.processDMEvent({
               senderId: event.senderId,
               senderUsername: event.senderUsername,
@@ -43,6 +45,7 @@ export async function POST(req: Request) {
               type: "DM",
             });
           } else if (event.type === "COMMENT") {
+            console.log(`💬 Processing COMMENT from ${event.senderUsername}: "${event.message}" on Media ${event.mediaId}`);
             result = await automationEngine.processCommentEvent({
               recipientId: event.recipientId,
               mediaId: event.mediaId || "",
@@ -63,7 +66,9 @@ export async function POST(req: Request) {
           }
 
           if (result?.triggered) {
-            console.log(`✅ Automation [${event.type}] triggered: ${result.automationId}`);
+            console.log(`✅ SUCCESS: Automation [${event.type}] triggered: ${result.automationId}`);
+          } else {
+            console.log(`❌ FAILED: Automation not triggered. Reason: ${result?.error || "Unknown"}`);
           }
         } catch (error) {
           console.error(`Webhook processing error [${event.type}]:`, error);

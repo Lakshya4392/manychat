@@ -56,115 +56,62 @@ export async function GET(req: Request) {
     }
 
     const accessToken = tokenData.access_token;
-    console.log("[OAuth] Got access token ✓");
+    console.log("[OAuth] Got user access token ✓");
 
-    // 3. Try MULTIPLE methods to find Instagram Business Account ID
+    // 3. Find the Facebook Page linked to the Instagram Business Account and get its Page Token
     let instagramId: string | null = null;
+    let pageAccessToken: string | null = null;
 
-    // Method A: Direct /me lookup
     try {
-      console.log("[OAuth] Method A: Trying /me with instagram_business_account...");
-      const meRes = await fetch(
-        `https://graph.facebook.com/v21.0/me?fields=id,name,instagram_business_account&access_token=${accessToken}`
+      console.log("[OAuth] Fetching connected pages and their tokens...");
+      const pagesRes = await fetch(
+        `https://graph.facebook.com/v21.0/me/accounts?fields=id,name,access_token,instagram_business_account{id,username}&access_token=${accessToken}`
       );
-      const meData = await meRes.json();
-      console.log("[OAuth] Method A response:", JSON.stringify(meData));
-      if (meData.instagram_business_account?.id) {
-        instagramId = meData.instagram_business_account.id;
-        console.log("[OAuth] Method A found ID:", instagramId);
+      const pagesData = await pagesRes.json();
+      
+      if (pagesData.data) {
+        for (const page of pagesData.data) {
+          if (page.instagram_business_account?.id) {
+            instagramId = page.instagram_business_account.id;
+            pageAccessToken = page.access_token; // <--- THIS IS THE TOKEN WE NEED FOR MESSAGING
+            console.log(`[OAuth] Found IG Account ${instagramId} linked to Page ${page.name}`);
+            break;
+          }
+        }
       }
     } catch (e) {
-      console.log("[OAuth] Method A failed:", e);
+      console.error("[OAuth] Failed to fetch pages/tokens:", e);
     }
 
-    // Method B: Via /me/accounts (Pages) 
-    if (!instagramId) {
-      try {
-        console.log("[OAuth] Method B: Trying /me/accounts...");
-        const pagesRes = await fetch(
-          `https://graph.facebook.com/v21.0/me/accounts?fields=id,name,instagram_business_account{id,username}&access_token=${accessToken}`
-        );
-        const pagesData = await pagesRes.json();
-        console.log("[OAuth] Method B response:", JSON.stringify(pagesData));
-        
-        if (pagesData.data) {
-          for (const page of pagesData.data) {
-            if (page.instagram_business_account?.id) {
-              instagramId = page.instagram_business_account.id;
-              console.log("[OAuth] Method B found ID:", instagramId);
-              break;
-            }
-          }
-        }
-      } catch (e) {
-        console.log("[OAuth] Method B failed:", e);
-      }
+    if (!instagramId || !pageAccessToken) {
+        console.error("[OAuth] No Instagram Business Account or Page Token found.");
+        return NextResponse.redirect(`${origin}/integrations?error=no_instagram_business_account`);
     }
 
-    // Method C: Try the debug_token endpoint to get user_id
-    if (!instagramId) {
-      try {
-        console.log("[OAuth] Method C: Trying debug_token...");
-        const debugRes = await fetch(
-          `https://graph.facebook.com/v21.0/debug_token?input_token=${accessToken}&access_token=${clientId}|${clientSecret}`
-        );
-        const debugData = await debugRes.json();
-        console.log("[OAuth] Method C response:", JSON.stringify(debugData));
-        
-        // The granular_scopes might contain the Instagram account ID
-        if (debugData.data?.granular_scopes) {
-          for (const scope of debugData.data.granular_scopes) {
-            if (scope.scope === "instagram_manage_comments" && scope.target_ids?.length > 0) {
-              // These target_ids are the Page IDs, we can use them to find IG account
-              for (const pageId of scope.target_ids) {
-                const pageIgRes = await fetch(
-                  `https://graph.facebook.com/v21.0/${pageId}?fields=instagram_business_account{id,username}&access_token=${accessToken}`
-                );
-                const pageIgData = await pageIgRes.json();
-                console.log("[OAuth] Method C page lookup:", JSON.stringify(pageIgData));
-                if (pageIgData.instagram_business_account?.id) {
-                  instagramId = pageIgData.instagram_business_account.id;
-                  console.log("[OAuth] Method C found ID:", instagramId);
-                  break;
-                }
-              }
-              if (instagramId) break;
-            }
-          }
-        }
-      } catch (e) {
-        console.log("[OAuth] Method C failed:", e);
-      }
-    }
-
-    // 4. Save to Database
+    // 4. Save the PAGE TOKEN to Database (Required for Messaging)
     const dbUser = await db.user.findUnique({ where: { clerkId } });
     if (!dbUser) throw new Error("User not found in DB");
 
     await db.integrations.upsert({
       where: { userId_name: { userId: dbUser.id, name: "INSTAGRAM" } },
       update: {
-        token: accessToken,
-        instagramId: instagramId || "",
+        token: pageAccessToken,
+        instagramId: instagramId,
         expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
       },
       create: {
         userId: dbUser.id,
         name: "INSTAGRAM",
-        token: accessToken,
-        instagramId: instagramId || "",
+        token: pageAccessToken,
+        instagramId: instagramId,
         expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
       },
     });
 
-    console.log(`[OAuth] Saved! Instagram ID: ${instagramId || "NOT_FOUND"}`);
+    console.log(`[OAuth] Saved Page Token for Instagram ID: ${instagramId}`);
     revalidatePath("/integrations");
 
-    if (instagramId) {
-      return NextResponse.redirect(`${origin}/integrations?success=true`);
-    } else {
-      return NextResponse.redirect(`${origin}/integrations?success=true&warning=instagram_id_not_found`);
-    }
+    return NextResponse.redirect(`${origin}/integrations?success=true`);
   } catch (err) {
     console.error("[OAuth] Fatal Error:", err);
     return NextResponse.redirect(`${origin}/integrations?error=internal_error`);
