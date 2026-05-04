@@ -55,8 +55,24 @@ export class AutomationEngine {
       where: { instagramId: dm.recipientId },
     });
 
-    // Fallback: If no match by ID, try to find any Instagram integration
+    // AUTO-HEALING: If not found by ID, check if there's a PENDING_SETUP integration
     if (!integration) {
+      console.log(`🔍 Integration not found for ID ${dm.recipientId}. Checking for PENDING_SETUP...`);
+      integration = await db.integrations.findFirst({
+        where: { instagramId: "PENDING_SETUP" }
+      });
+
+      if (integration) {
+        console.log(`✨ AUTO-HEAL: Updating PENDING_SETUP to real ID: ${dm.recipientId}`);
+        await db.integrations.update({
+          where: { id: integration.id },
+          data: { instagramId: dm.recipientId }
+        });
+      }
+    }
+
+    if (!integration) {
+      // Final fallback: if still not found, try to find ANY active instagram integration for testing
       integration = await db.integrations.findFirst({
         where: { 
           name: "INSTAGRAM",
@@ -185,12 +201,31 @@ export class AutomationEngine {
     error?: string;
   }> {
     // Search by recipientId (the business account)
-    const integration = await db.integrations.findUnique({
+    let integration = await db.integrations.findUnique({
       where: { instagramId: comment.recipientId },
     });
 
-    if (!integration) return { triggered: false, error: "User not found" };
+    // AUTO-HEALING: If not found by ID, check if there's a PENDING_SETUP integration
+    if (!integration) {
+      console.log(`🔍 Integration not found for ID ${comment.recipientId}. Checking for PENDING_SETUP...`);
+      integration = await db.integrations.findFirst({
+        where: { instagramId: "PENDING_SETUP" }
+      });
 
+      if (integration) {
+        console.log(`✨ AUTO-HEAL: Updating PENDING_SETUP to real ID: ${comment.recipientId}`);
+        await db.integrations.update({
+          where: { id: integration.id },
+          data: { instagramId: comment.recipientId }
+        });
+      }
+    }
+
+    if (!integration) {
+      console.log(`❌ No integration found for Instagram ID: ${comment.recipientId}`);
+      return { triggered: false, error: "Integration not found" };
+    } 
+    
     const automations = (await db.automation.findMany({
       where: { userId: integration.userId, active: true },
       include: { keywords: true, listener: true, trigger: true },
